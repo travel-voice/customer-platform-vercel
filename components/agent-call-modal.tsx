@@ -2,11 +2,12 @@
 
 import React, { useEffect, useState, useRef } from "react";
 import Vapi from "@vapi-ai/web";
-import { Dialog, DialogContent, DialogTitle } from "@/components/ui/dialog";
-import { Button } from "@/components/ui/button";
-import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
-import { Mic, MicOff, PhoneOff, Bot, Volume2, Loader2 } from "lucide-react";
-import { cn } from "@/lib/utils";
+
+interface Message {
+  content: string;
+  role: "assistant" | "user";
+  type: "received" | "sent";
+}
 
 interface AgentCallModalProps {
   isOpen: boolean;
@@ -16,7 +17,160 @@ interface AgentCallModalProps {
   agentImage?: string;
 }
 
-// Vapi instance should be singleton if possible, or cleanup properly
+class MessageBlock {
+  private readonly messages: Message[] = [];
+  private readonly messageQueue: Message[] = [];
+  private typedContent = '';
+  private isTyping = false;
+  private currentCharIndex = 0;
+  readonly role: string;
+  private readonly subscribers: Set<() => void> = new Set();
+
+  constructor(initialMessage: Message) {
+    this.role = initialMessage.role;
+    this.messageQueue.push(initialMessage);
+    this.startTyping();
+  }
+
+  appendMessage(message: Message): boolean {
+    if (message.role !== this.role) return false;
+    this.messageQueue.push(message);
+    if (!this.isTyping) {
+      this.startTyping();
+    }
+    return true;
+  }
+
+  private notifySubscribers() {
+    this.subscribers.forEach(callback => callback());
+  }
+
+  subscribe(callback: () => void): () => void {
+    this.subscribers.add(callback);
+    return () => {
+      this.subscribers.delete(callback);
+      return void 0;
+    };
+  }
+
+  private async startTyping() {
+    if (this.isTyping) return;
+    this.isTyping = true;
+
+    const processQueue = async () => {
+      const currentMessage = this.messageQueue[0];
+      if (!currentMessage) {
+        this.isTyping = false;
+        this.notifySubscribers();
+        return;
+      }
+
+      for (let i = this.currentCharIndex; i < currentMessage.content.length; i++) {
+        this.typedContent += currentMessage.content[i];
+        this.currentCharIndex++;
+        this.notifySubscribers();
+
+        await new Promise(resolve => setTimeout(resolve, 35));
+      }
+
+      const message = this.messageQueue.shift();
+      if (message) {
+        this.messages.push(message);
+        this.typedContent += ' ';
+        this.currentCharIndex = 0;
+      }
+      this.notifySubscribers();
+
+      if (this.messageQueue.length > 0) {
+        await new Promise(resolve => setTimeout(resolve, 50));
+        await processQueue();
+      } else {
+        this.isTyping = false;
+        this.notifySubscribers();
+      }
+    };
+
+    try {
+      await processQueue();
+    } catch (error) {
+      this.isTyping = false;
+      this.notifySubscribers();
+    }
+  }
+
+  getDisplayContent(): string {
+    return this.typedContent;
+  }
+
+  isCurrentlyTyping(): boolean {
+    return this.isTyping;
+  }
+}
+
+const MessageBlockView: React.FC<{ block: MessageBlock }> = ({ block }) => {
+  const [displayText, setDisplayText] = useState(block.getDisplayContent());
+
+  useEffect(() => {
+    const unsubscribe = block.subscribe(() => {
+      setDisplayText(block.getDisplayContent());
+    });
+    return () => {
+      unsubscribe();
+    };
+  }, [block]);
+
+  return (
+    <div className={`nv-message-block nv-message-block-${block.role}`}>
+      <div className="nv-message-content">
+        {displayText}
+      </div>
+    </div>
+  );
+};
+
+const TranscriptFeed: React.FC<{ addTranscript: (fn: (message: Message) => void) => void }> = ({ addTranscript }) => {
+  const feedRef = useRef<HTMLDivElement>(null);
+  const [messageBlocks, setMessageBlocks] = useState<MessageBlock[]>([]);
+
+  const scrollToBottom = () => {
+    if (feedRef.current) {
+      feedRef.current.scrollTop = feedRef.current.scrollHeight;
+    }
+  };
+
+  useEffect(() => {
+    const feed = feedRef.current;
+    if (!feed) return;
+
+    const observer = new MutationObserver(scrollToBottom);
+    observer.observe(feed, { childList: true, subtree: true, characterData: true });
+
+    return () => observer.disconnect();
+  }, []);
+
+  const handleNewMessage = (message: Message) => {
+    setMessageBlocks(prevBlocks => {
+      const lastBlock = prevBlocks[prevBlocks.length - 1];
+      return !lastBlock?.appendMessage(message)
+        ? [...prevBlocks, new MessageBlock(message)]
+        : [...prevBlocks];
+    });
+  };
+
+  useEffect(() => {
+    addTranscript(handleNewMessage);
+  }, [addTranscript]);
+
+  return (
+    <div className="nv-transcript-feed" ref={feedRef}>
+      {messageBlocks.map((block, index) => (
+        <MessageBlockView key={`${block.role}-${index}`} block={block} />
+      ))}
+    </div>
+  );
+};
+
+// Vapi instance should be singleton
 const vapi = new Vapi(process.env.NEXT_PUBLIC_VAPI_PUBLIC_KEY || "");
 
 export function AgentCallModal({
@@ -26,212 +180,386 @@ export function AgentCallModal({
   agentName,
   agentImage,
 }: AgentCallModalProps) {
-  const [status, setStatus] = useState<"idle" | "connecting" | "connected" | "error">("idle");
-  const [isMuted, setIsMuted] = useState(false);
-  const [agentVolume, setAgentVolume] = useState(0);
-  const [isUserSpeaking, setIsUserSpeaking] = useState(false);
-  const [activeTranscript, setActiveTranscript] = useState("");
-
-  useEffect(() => {
-    if (isOpen) {
-        startCall();
-    } else {
-        endCall();
-    }
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, [isOpen]);
+  const [loadingAnimation, setLoadingAnimation] = useState(false);
+  const [callStarted, setCallStarted] = useState(false);
+  const [hasCallEnded, setHasCallEnded] = useState(false);
+  const [vapiCallId, setVapiCallId] = useState<string | null>(null);
+  const addTranscriptRef = useRef<((message: Message) => void) | null>(null);
 
   useEffect(() => {
     if (!isOpen) return;
 
-    // Event listeners
-    const onCallStart = () => {
-      setStatus("connected");
-    };
+    setLoadingAnimation(true);
+    setCallStarted(false);
+    setHasCallEnded(false);
 
+    // Start the call
+    vapi.start(assistantId).then(call => {
+      if (!call) {
+        throw new Error('Failed to start call');
+      }
+      setVapiCallId(call.id);
+    }).catch(err => {
+      console.error("Failed to start call:", err);
+      setLoadingAnimation(false);
+    });
+
+    // Event listeners
     const onCallEnd = () => {
-      setStatus("idle");
-      onClose();
+      setCallStarted(false);
+      setHasCallEnded(true);
+      vapi.stop();
     };
 
     const onError = (error: any) => {
       console.error("Vapi error:", error);
-      setStatus("error");
+      setHasCallEnded(true);
     };
 
-    const onVolumeLevel = (volume: number) => {
-      setAgentVolume(volume);
-    };
-    
-    const onSpeechStart = () => {
-        setIsUserSpeaking(true);
-    };
-    
-    const onSpeechEnd = () => {
-        setIsUserSpeaking(false);
-    };
-    
-    const onMessage = (message: any) => {
-        if (message.type === "transcript" && message.transcriptType === "partial") {
-            setActiveTranscript(message.transcript);
-        }
+    const onMessage = (msg: any) => {
+      if (msg.type === 'speech-update' && !callStarted) {
+        setCallStarted(true);
+        setLoadingAnimation(false);
+      }
+
+      if (msg.type === 'transcript' && msg.transcriptType === 'final' && msg.role) {
+        const message: Message = {
+          content: msg.transcript,
+          role: msg.role,
+          type: msg.role === 'assistant' ? 'received' : 'sent',
+        };
+
+        addTranscriptRef.current?.(message);
+      }
     };
 
-    vapi.on("call-start", onCallStart);
     vapi.on("call-end", onCallEnd);
     vapi.on("error", onError);
-    vapi.on("volume-level", onVolumeLevel);
-    vapi.on("speech-start", onSpeechStart);
-    vapi.on("speech-end", onSpeechEnd);
     vapi.on("message", onMessage);
 
     return () => {
-      vapi.off("call-start", onCallStart);
       vapi.off("call-end", onCallEnd);
       vapi.off("error", onError);
-      vapi.off("volume-level", onVolumeLevel);
-      vapi.off("speech-start", onSpeechStart);
-      vapi.off("speech-end", onSpeechEnd);
       vapi.off("message", onMessage);
     };
-  }, [isOpen, onClose]);
+  }, [isOpen, assistantId, callStarted]);
 
-  const startCall = async () => {
-    setStatus("connecting");
-    try {
-      await vapi.start(assistantId);
-    } catch (err) {
-      console.error("Failed to start call:", err);
-      setStatus("error");
-    }
-  };
-
-  const endCall = () => {
+  const handleClose = () => {
     vapi.stop();
-    setStatus("idle");
+    setCallStarted(false);
+    setHasCallEnded(true);
+    onClose();
   };
 
-  const toggleMute = () => {
-    const newMutedState = !isMuted;
-    vapi.setMuted(newMutedState);
-    setIsMuted(newMutedState);
-  };
-
-  // Calculate pulsing effect based on volume
-  const pulseScale = 1 + Math.min(agentVolume, 1) * 0.2;
+  if (!isOpen) return null;
 
   return (
-    <Dialog open={isOpen} onOpenChange={(open) => !open && onClose()}>
-      <DialogContent className="sm:max-w-md border-0 bg-transparent shadow-none p-0 overflow-hidden focus:outline-none">
-        {/* Glassmorphism Container */}
-        <div className="relative flex flex-col items-center justify-center w-full h-[600px] rounded-3xl bg-white/10 backdrop-blur-xl border border-white/20 shadow-2xl overflow-hidden">
-           <DialogTitle className="sr-only">Call with {agentName}</DialogTitle>
-          
-          {/* Background decorative elements */}
-          <div className="absolute top-[-20%] left-[-20%] w-[300px] h-[300px] rounded-full bg-[#1AADF0]/30 blur-[80px]" />
-          <div className="absolute bottom-[-20%] right-[-20%] w-[300px] h-[300px] rounded-full bg-purple-500/30 blur-[80px]" />
-
-          {/* Header */}
-          <div className="absolute top-6 w-full px-6 flex justify-between items-start z-10">
-            <div className="flex items-center gap-2 bg-black/20 backdrop-blur-md px-3 py-1.5 rounded-full">
-              <div className={cn("w-2 h-2 rounded-full", 
-                status === "connected" ? "bg-green-400 animate-pulse" : 
-                status === "connecting" ? "bg-yellow-400" : "bg-red-400"
-              )} />
-              <span className="text-xs font-medium text-white/90">
-                {status === "connected" ? "Live" : 
-                 status === "connecting" ? "Connecting..." : "Disconnected"}
-              </span>
-            </div>
-            <div className="bg-black/20 backdrop-blur-md px-3 py-1.5 rounded-full">
-                <span className="text-xs font-medium text-white/90">
-                   AI Voice Agent
-                </span>
-            </div>
-          </div>
-
-          {/* Main Content */}
-          <div className="flex flex-col items-center justify-center z-10 w-full px-8">
-            {/* Avatar with Pulse */}
-            <div className="relative mb-8">
-              {/* Ripple/Pulse Effect Rings */}
-              {status === "connected" && agentVolume > 0.01 && (
-                 <>
-                    <div className="absolute inset-0 rounded-full bg-[#1AADF0]/30 animate-ping" style={{ animationDuration: '2s' }} />
-                    <div className="absolute inset-0 rounded-full bg-[#1AADF0]/20 animate-ping" style={{ animationDuration: '1.5s', animationDelay: '0.5s' }} />
-                 </>
+    <div className="nv-widget">
+      <div className="nv-blur-background" onClick={handleClose}></div>
+      <div className="nv-popup-container">
+        <div className="nv-container">
+          <img className="nv-background-image" src={agentImage || '/defaultcharacter.png'} alt={agentName} />
+          <button className="nv-close-button" onClick={handleClose}>
+            <svg width="20" height="20" viewBox="0 0 20 20" fill="none" xmlns="http://www.w3.org/2000/svg">
+              <path d="M15 5L5 15M5 5L15 15" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round"/>
+            </svg>
+          </button>
+          <h2 className="nv-title">
+            You are now chatting with AI <span className="nv-character-name">{agentName}</span>
+          </h2>
+          <p className="nv-description">Please make sure you enable your microphone</p>
+          <div className="nv-message-box">
+            <div className="nv-messages">
+              {loadingAnimation && (
+                <div className="nv-loader-box">
+                  <div className="nv-loader-text">Loading</div>
+                  <div className="nv-loader" />
+                </div>
               )}
-              
-              <div 
-                className="relative h-32 w-32 rounded-full ring-4 ring-white/20 shadow-[0_0_40px_rgba(26,173,240,0.4)] transition-transform duration-100 ease-out"
-                style={{ transform: `scale(${pulseScale})` }}
-              >
-                <Avatar className="h-full w-full">
-                  <AvatarImage src={agentImage} className="object-cover" />
-                  <AvatarFallback className="bg-gradient-to-br from-[#1AADF0] to-indigo-600 text-white text-3xl">
-                    {agentName.charAt(0)}
-                  </AvatarFallback>
-                </Avatar>
-              </div>
-            </div>
-
-            {/* Agent Name & Status */}
-            <h2 className="text-2xl font-bold text-white mb-2 text-center">{agentName}</h2>
-            <p className="text-white/60 text-center h-6">
-               {status === "connecting" && "Establishing connection..."}
-               {status === "connected" && (agentVolume > 0.05 ? "Speaking..." : isUserSpeaking ? "Listening..." : "Ready")}
-               {status === "error" && "Connection failed"}
-            </p>
-
-            {/* Live Transcript (Optional, simulated placement) */}
-            <div className="mt-8 w-full h-24 flex items-center justify-center">
-                {activeTranscript && (
-                    <p className="text-white/80 text-center text-lg font-light animate-in fade-in slide-in-from-bottom-2">
-                        "{activeTranscript}"
-                    </p>
-                )}
-            </div>
-          </div>
-
-          {/* Controls */}
-          <div className="absolute bottom-8 w-full px-8 flex justify-center items-center gap-6 z-10">
-            {/* Mute Button */}
-            <Button
-              variant="ghost"
-              size="icon"
-              className={cn(
-                "h-14 w-14 rounded-full bg-white/10 backdrop-blur-md border border-white/10 text-white hover:bg-white/20 hover:scale-105 transition-all duration-200",
-                isMuted && "bg-red-500/20 border-red-500/50 text-red-400 hover:bg-red-500/30"
+              {!loadingAnimation && (
+                <TranscriptFeed
+                  addTranscript={fn => {
+                    addTranscriptRef.current = fn;
+                  }}
+                />
               )}
-              onClick={toggleMute}
-              disabled={status !== "connected"}
-            >
-              {isMuted ? <MicOff className="h-6 w-6" /> : <Mic className="h-6 w-6" />}
-            </Button>
-
-            {/* End Call Button */}
-            <Button
-              variant="destructive"
-              size="icon"
-              className="h-16 w-16 rounded-full bg-red-500 hover:bg-red-600 shadow-lg hover:scale-105 transition-all duration-200 ring-4 ring-red-500/30"
-              onClick={onClose}
-            >
-              <PhoneOff className="h-8 w-8 fill-white" />
-            </Button>
-
-            {/* Volume/Settings (Placeholder) */}
-            <Button
-              variant="ghost"
-              size="icon"
-              className="h-14 w-14 rounded-full bg-white/10 backdrop-blur-md border border-white/10 text-white hover:bg-white/20 hover:scale-105 transition-all duration-200"
-              disabled
-            >
-              <Volume2 className="h-6 w-6" />
-            </Button>
+            </div>
           </div>
         </div>
-      </DialogContent>
-    </Dialog>
+      </div>
+
+      <style jsx global>{`
+        /* Variables */
+        .nv-widget {
+          --color-caribbean-blue: #28c1e5;
+          --color-blue-raspberry: #08c1e3;
+          --color-dark-eclipse: #0e1c3d;
+          --color-white: #fff;
+          --color-error: #bf1650;
+          --color-grey: #d9d9d980;
+          --color-grey-dark: #999b9c;
+        }
+
+        /* Widget */
+        .nv-widget {
+          font-family: 'Rubik', -apple-system, BlinkMacSystemFont, 'Segoe UI', 'Roboto', 'Oxygen', 'Ubuntu', 'Cantarell', 'Fira Sans', 'Droid Sans', 'Helvetica Neue', sans-serif;
+        }
+
+        .nv-blur-background {
+          position: fixed;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+          background: rgba(0, 0, 0, 0.5);
+          backdrop-filter: blur(5px);
+          z-index: 9999999998;
+        }
+
+        .nv-popup-container {
+          position: fixed;
+          top: 0;
+          left: 0;
+          width: 100%;
+          height: 100%;
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          z-index: 9999999999;
+          pointer-events: none;
+        }
+
+        .nv-container {
+          width: min(850px, 96vw);
+          box-sizing: border-box;
+          padding: 35px 45px;
+          border-radius: 20px;
+          overflow: auto;
+          background: rgba(255, 255, 255, 0.25);
+          backdrop-filter: blur(12px);
+          -webkit-backdrop-filter: blur(12px);
+          box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+          border: 1px solid rgba(255, 255, 255, 0.65);
+          flex-direction: column;
+          margin: 0;
+          scrollbar-width: thin;
+          scrollbar-color: var(--color-caribbean-blue) rgba(255, 255, 255, 0.29);
+          position: relative;
+          pointer-events: auto;
+        }
+
+        .nv-container .nv-background-image {
+          z-index: -1;
+          position: absolute;
+          height: 95%;
+          width: auto;
+          object-fit: contain;
+          bottom: 0;
+          left: 85%;
+          transform: translateX(-50%);
+        }
+
+        .nv-container .nv-close-button {
+          position: absolute;
+          top: 20px;
+          right: 20px;
+          border: 0;
+          cursor: pointer;
+          transition: all 0.3s;
+          width: 35px;
+          height: 35px;
+          padding: 5px;
+          border-radius: 50%;
+          background: rgba(255, 255, 255, 0.2);
+          display: flex;
+          align-items: center;
+          justify-content: center;
+          color: var(--color-dark-eclipse);
+        }
+
+        .nv-container .nv-close-button:hover {
+          color: var(--color-caribbean-blue);
+          background: rgba(255, 255, 255, 0.3);
+        }
+
+        .nv-container .nv-title {
+          color: var(--color-dark-eclipse);
+          font-size: 24px;
+          font-weight: 700;
+          letter-spacing: 0;
+          line-height: 28px;
+          margin-bottom: 0.5rem;
+        }
+
+        .nv-container .nv-character-name {
+          color: var(--color-caribbean-blue);
+        }
+
+        .nv-container .nv-description {
+          color: var(--color-dark-eclipse);
+          font-size: 1.4rem;
+          letter-spacing: 0;
+          line-height: 1.7rem;
+        }
+
+        .nv-container .nv-message-box {
+          position: relative;
+          width: min(570px, 100%);
+          box-sizing: border-box;
+          margin-top: 1.5rem;
+          height: 220px;
+          overflow: hidden;
+          background: rgba(167, 167, 167, 0.25);
+          border-radius: 16px;
+          box-shadow: 0 4px 30px rgba(0, 0, 0, 0.1);
+          backdrop-filter: blur(8.7px);
+          -webkit-backdrop-filter: blur(8.7px);
+          border: 1px solid rgba(167, 167, 167, 0.63);
+          scrollbar-width: thin;
+          scrollbar-color: var(--color-caribbean-blue) #f2fcff;
+        }
+
+        .nv-container .nv-messages {
+          width: 100%;
+          height: 100%;
+          box-sizing: border-box;
+          padding: 20px;
+          display: block;
+          gap: 8px;
+          overflow-y: auto;
+          scroll-behavior: smooth;
+          scrollbar-width: thin;
+          scrollbar-color: var(--color-caribbean-blue) rgba(255, 255, 255, 0.29);
+        }
+
+        .nv-container .nv-messages::-webkit-scrollbar {
+          width: 8px;
+        }
+
+        .nv-container .nv-messages::-webkit-scrollbar-track {
+          background-color: rgba(255, 255, 255, 0.29);
+          border-radius: 5px;
+          backdrop-filter: blur(7.8px);
+          -webkit-backdrop-filter: blur(7.8px);
+          border: 1px solid rgba(255, 255, 255, 0.65);
+        }
+
+        .nv-container .nv-messages::-webkit-scrollbar-thumb {
+          background-color: var(--color-caribbean-blue);
+          border-radius: 5px;
+          cursor: pointer;
+        }
+
+        /* Transcript Feed */
+        .nv-transcript-feed {
+          width: 100%;
+          height: 100%;
+          display: flex;
+          flex-direction: column;
+        }
+
+        .nv-message-block {
+          padding: 12px 16px;
+          max-width: 80%;
+          width: fit-content;
+          color: var(--color-white);
+          font-size: 14px;
+          font-weight: 500;
+          letter-spacing: 0;
+          line-height: 1.4;
+          margin-bottom: 12px;
+          white-space: pre-wrap;
+          word-wrap: break-word;
+          word-break: break-word;
+          border-radius: 15px;
+        }
+
+        .nv-transcript-feed .nv-message-block-assistant {
+          border-radius: 15px 15px 15px 0;
+          background-color: var(--color-dark-eclipse);
+          align-self: flex-start;
+        }
+
+        .nv-transcript-feed .nv-message-block-user {
+          border-radius: 15px 15px 0 15px;
+          background-color: var(--color-caribbean-blue);
+          align-self: flex-end;
+        }
+
+        .nv-message-block .nv-message-content {
+          display: inline;
+        }
+
+        /* Loader */
+        .nv-loader-box {
+          width: 100%;
+          height: 100%;
+          display: flex;
+          justify-content: center;
+          align-items: center;
+          gap: 8px;
+        }
+
+        .nv-loader-text {
+          font-size: 24px;
+          color: var(--color-dark-eclipse);
+        }
+
+        .nv-loader {
+          margin-top: 30px;
+          width: 30px;
+          height: 16px;
+          --_g: no-repeat radial-gradient(farthest-side, var(--color-dark-eclipse) 94%, #0000);
+          background:
+            var(--_g) 50% 0,
+            var(--_g) 100% 0;
+          background-size: 6px 6px;
+          position: relative;
+          animation: nv-loader-move 1.5s linear infinite;
+        }
+
+        .nv-loader:before {
+          content: '';
+          position: absolute;
+          height: 6px;
+          aspect-ratio: 1;
+          border-radius: 50%;
+          background: var(--color-dark-eclipse);
+          left: 0;
+          top: 0;
+          animation:
+            nv-loader-jump-move 1.5s linear infinite,
+            nv-loader-jump 0.5s cubic-bezier(0, 200, 0.8, 200) infinite;
+        }
+
+        @keyframes nv-loader-move {
+          0%, 5% { background-position: 0 0, 50% 0; }
+          10% { background-position: 0 0, 50% 0; }
+          25% { background-position: 50% 0, 50% 0; }
+          30% { background-position: 50% 0, 100% 0; }
+          45% { background-position: 50% 0, 100% 0; }
+          50%, 55% { background-position: 50% 0, 100% 0; }
+          70% { background-position: 100% 0, 100% 0; }
+          80% { background-position: 100% 0, 50% 0; }
+          95%, 100% { background-position: 50% 0, 50% 0; }
+        }
+
+        @keyframes nv-loader-jump-move {
+          0%, 5% { left: 0; }
+          10% { left: 0; }
+          25% { left: 50%; }
+          30% { left: 50%; }
+          45% { left: 50%; }
+          50%, 55% { left: 50%; }
+          70% { left: 100%; }
+          80% { left: 100%; }
+          95%, 100% { left: 50%; }
+        }
+
+        @keyframes nv-loader-jump {
+          50% { transform: translateY(-10px); }
+        }
+      `}</style>
+    </div>
   );
 }
-
