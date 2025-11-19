@@ -191,9 +191,10 @@ class VapiClient {
         provider: 'twilio', // Default to Twilio for voicemail detection
         enabled: params.voicemailDetection.enabled,
       };
-      if (params.voicemailDetection.msg) {
-        payload.voicemailDetection.machineDetectionMessage = params.voicemailDetection.msg;
-      }
+      // machineDetectionMessage is not supported by Vapi API currently
+      // if (params.voicemailDetection.msg) {
+      //   payload.voicemailDetection.machineDetectionMessage = params.voicemailDetection.msg;
+      // }
       if (params.voicemailDetection.timeout) {
         payload.voicemailDetection.machineDetectionTimeout = params.voicemailDetection.timeout;
       }
