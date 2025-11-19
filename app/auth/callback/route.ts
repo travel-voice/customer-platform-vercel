@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { createClient, createAdminClient } from '@/lib/supabase/server';
 
 export async function GET(request: NextRequest) {
   const requestUrl = new URL(request.url);
@@ -21,7 +21,9 @@ export async function GET(request: NextRequest) {
     const { data: { user } } = await supabase.auth.getUser();
 
     if (user) {
-      const { data: userData, error: userError } = await supabase
+      const adminSupabase = createAdminClient();
+      
+      const { data: userData, error: userError } = await adminSupabase
         .from('users')
         .select('*')
         .eq('uuid', user.id)
@@ -36,14 +38,17 @@ export async function GET(request: NextRequest) {
       // Create their organization and user record
       if (userError || !userData) {
         // For OAuth users, create org and profile with metadata
-        const firstName = user.user_metadata?.first_name || user.email?.split('@')[0] || 'User';
-        const lastName = user.user_metadata?.last_name || '';
+        const meta = user.user_metadata || {};
+        const firstName = meta.first_name || meta.given_name || meta.full_name?.split(' ')[0] || user.email?.split('@')[0] || 'User';
+        const lastName = meta.last_name || meta.family_name || meta.full_name?.split(' ').slice(1).join(' ') || '';
+
+        const orgName = meta.organisation_name || `${firstName}'s Organization`;
 
         // Create organization
-        const { data: orgData } = await supabase
+        const { data: orgData } = await adminSupabase
           .from('organizations')
           .insert({
-            name: `${firstName}'s Organization`,
+            name: orgName,
             subscription_plan: 'free',
             time_remaining_seconds: 0,
           })
@@ -52,7 +57,7 @@ export async function GET(request: NextRequest) {
 
         if (orgData) {
           // Create user profile
-          await supabase
+          await adminSupabase
             .from('users')
             .insert({
               uuid: user.id,

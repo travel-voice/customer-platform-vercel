@@ -13,6 +13,7 @@ export async function middleware(request: NextRequest) {
     '/auth/reset-password',
     '/auth/verify-email',
     '/auth/verification/success',
+    '/auth/callback',
   ];
 
   const isPublicRoute = publicRoutes.some(route => pathname.startsWith(route));
