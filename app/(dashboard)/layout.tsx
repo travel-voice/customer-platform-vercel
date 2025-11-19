@@ -23,6 +23,7 @@ import {
   DropdownMenuSeparator,
   DropdownMenuTrigger,
 } from "@/components/ui/dropdown-menu";
+import { Loader } from "@/components/ui/loader";
 import { useAuthStore } from "@/lib/stores/auth-store";
 
 // Custom Dashboard Icon
@@ -182,10 +183,7 @@ export default function DashboardLayout({
   if (!user) {
     return (
       <div className="flex items-center justify-center min-h-screen bg-gradient-to-br from-gray-50 via-white to-[#C9EEFE]/20">
-        <div className="flex items-center space-x-2">
-          <div className="w-6 h-6 border-2 border-[#1AADF0] border-t-transparent rounded-full animate-spin" />
-          <span className="text-gray-600">Loading...</span>
-        </div>
+        <Loader text="Loading Dashboard..." subtext="Preparing your experience" />
       </div>
     );
   }

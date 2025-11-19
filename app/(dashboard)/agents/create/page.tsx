@@ -2,6 +2,7 @@
 
 import { useRouter } from "next/navigation";
 import { useEffect } from "react";
+import { Loader } from "@/components/ui/loader";
 
 export default function CreateAgentPage() {
   const router = useRouter();
@@ -12,11 +13,8 @@ export default function CreateAgentPage() {
   }, [router]);
 
   return (
-    <div className="flex items-center justify-center min-h-96">
-      <div className="text-center">
-        <h1 className="text-xl font-semibold mb-2">Redirecting...</h1>
-        <p className="text-muted-foreground">Taking you to the agents page</p>
-      </div>
+    <div className="flex items-center justify-center min-h-[60vh]">
+      <Loader text="Redirecting..." subtext="Taking you to the agents page" />
     </div>
   );
 } 

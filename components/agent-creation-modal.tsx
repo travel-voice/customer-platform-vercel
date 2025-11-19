@@ -89,6 +89,7 @@ export function AgentCreationModal({
   const [playingVoiceId, setPlayingVoiceId] = useState<string | null>(null);
   const [isImageEditorOpen, setIsImageEditorOpen] = useState(false);
   const [rawImageSrc, setRawImageSrc] = useState<string | null>(null);
+  const [isSubmitting, setIsSubmitting] = useState(false);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   
@@ -166,6 +167,9 @@ export function AgentCreationModal({
   };
 
   const onSubmit = async (data: CreateAgentForm) => {
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+    
     try {
       let imageUrl: string | undefined = undefined;
       
@@ -213,6 +217,8 @@ export function AgentCreationModal({
     } catch (error) {
       // Error is handled by the store and passed via props
       console.error('Agent creation failed:', error);
+    } finally {
+      setIsSubmitting(false);
     }
   };
 
@@ -324,12 +330,19 @@ export function AgentCreationModal({
                   </div>
                   <Card className="p-4 bg-gradient-to-br from-purple-50 to-blue-50 border-2 border-dashed border-purple-200 hover:border-purple-300 transition-colors duration-200">
                     <div className="flex items-center gap-4">
-                      <Avatar className="h-16 w-16 ring-4 ring-purple-100 shadow-lg">
-                        <AvatarImage src={previewUrl || '/defaultcharacter.png'} />
-                        <AvatarFallback className="bg-gradient-to-br from-purple-100 to-blue-100">
-                          <Bot className="h-12 w-12 text-purple-600" />
-                        </AvatarFallback>
-                      </Avatar>
+                      <div className="relative h-32 w-24 shrink-0 overflow-hidden rounded-lg shadow-lg ring-4 ring-purple-100 bg-white">
+                        {previewUrl ? (
+                          <img 
+                            src={previewUrl} 
+                            alt="Agent preview" 
+                            className="h-full w-full object-cover"
+                          />
+                        ) : (
+                          <div className="h-full w-full flex items-center justify-center bg-gradient-to-br from-purple-100 to-blue-100">
+                            <Bot className="h-10 w-10 text-purple-600" />
+                          </div>
+                        )}
+                      </div>
                       <div className="flex-1">
                         <Button
                           type="button"
@@ -576,17 +589,17 @@ export function AgentCreationModal({
               </Button>
               <Button 
                 type="submit" 
-                disabled={isCreating || !form.watch("name") || !form.watch("voice_id")}
+                disabled={isCreating || isSubmitting || !form.watch("name") || !form.watch("voice_id")}
                 className="h-10 px-6 bg-gradient-to-r from-blue-600 to-purple-600 hover:from-blue-700 hover:to-purple-700 text-white font-semibold rounded-lg shadow-lg hover:shadow-xl transition-all duration-200"
               >
-                {isCreating ? (
+                {isCreating || isSubmitting ? (
                   <>
                     <motion.div
                       animate={{ rotate: 360 }}
                       transition={{ duration: 1, repeat: Infinity, ease: "linear" }}
                       className="w-4 h-4 border-2 border-white/30 border-t-white rounded-full mr-2"
                     />
-                    Creating...
+                    {isSubmitting && !isCreating ? "Processing..." : "Creating..."}
                   </>
                 ) : (
                   <>

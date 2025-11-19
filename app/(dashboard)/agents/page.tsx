@@ -297,21 +297,19 @@ export default function AgentsPage() {
                     <CardContent className="relative p-6 h-full flex flex-col">
                       {/* Avatar and Name */}
                       <div className="flex flex-col items-center text-center mb-6">
-                        <div className="relative mb-4">
+                        {agent.assistant_avatar_url ? (
+                          <img 
+                            src={agent.assistant_avatar_url} 
+                            alt={agent.assistant_name}
+                            className="h-20 w-20 rounded-lg object-cover shadow-lg group-hover:shadow-xl transition-all duration-300"
+                          />
+                        ) : (
                           <Avatar className="h-20 w-20 ring-4 ring-white shadow-lg group-hover:ring-[#1AADF0]/30 transition-all duration-300">
-                            <AvatarImage src={agent.assistant_avatar_url} />
-                            <AvatarFallback className="bg-gradient-to-r from-[#1AADF0] to-[#F52E60] text-white">
+                            <AvatarFallback className="bg-gradient-to-r from-[#1AADF0] to-[#F52E60] text-white rounded-lg">
                               <Bot className="h-10 w-10" />
                             </AvatarFallback>
                           </Avatar>
-                          <motion.div 
-                            className="absolute -top-1 -right-1 w-6 h-6 bg-gradient-to-r from-[#28F16B] to-[#22c55e] rounded-full flex items-center justify-center"
-                            animate={{ scale: [1, 1.1, 1] }}
-                            transition={{ duration: 2, repeat: Infinity }}
-                          >
-                            <div className="w-2 h-2 bg-white rounded-full" />
-                          </motion.div>
-                        </div>
+                        )}
                         <h3 className="font-bold text-xl truncate w-full text-gray-900 group-hover:text-[#1AADF0] transition-colors duration-300">
                           {agent.assistant_name}
                         </h3>

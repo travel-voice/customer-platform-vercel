@@ -404,10 +404,10 @@ export default function CustomerDashboard() {
                           <img 
                             src={agent.assistant_avatar_url} 
                             alt={agent.assistant_name}
-                            className="w-10 h-10 rounded-full object-cover ring-2 ring-gray-200"
+                            className="w-10 h-10 rounded-lg object-cover shadow-sm ring-1 ring-gray-200"
                           />
                         ) : (
-                          <div className="w-10 h-10 rounded-full bg-gradient-to-r from-[#1AADF0] to-[#F52E60] flex items-center justify-center">
+                          <div className="w-10 h-10 rounded-lg bg-gradient-to-r from-[#1AADF0] to-[#F52E60] flex items-center justify-center shadow-sm">
                             <Bot className="w-5 h-5 text-white" />
                           </div>
                         )}
@@ -463,10 +463,10 @@ export default function CustomerDashboard() {
                           <img 
                             src={agent.assistant_avatar_url} 
                             alt={agent.assistant_name}
-                            className="w-8 h-8 rounded-full object-cover ring-2 ring-gray-200"
+                            className="w-8 h-8 rounded-lg object-cover shadow-sm ring-1 ring-gray-200"
                           />
                         ) : (
-                          <div className="w-8 h-8 rounded-full bg-gradient-to-r from-[#1AADF0] to-[#F52E60] flex items-center justify-center">
+                          <div className="w-8 h-8 rounded-lg bg-gradient-to-r from-[#1AADF0] to-[#F52E60] flex items-center justify-center shadow-sm">
                             <Bot className="w-4 h-4 text-white" />
                           </div>
                         )}
