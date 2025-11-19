@@ -94,6 +94,7 @@ export default function SignInPage() {
           variants={staggeredVariants}
           initial="hidden"
           animate="visible"
+          className="space-y-6"
         >
           <Form {...form}>
             <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-5">
@@ -202,7 +203,7 @@ export default function SignInPage() {
               type="button"
               variant="outline"
               size="lg"
-              className="w-full font-semibold border-gray-300 hover:bg-gray-50"
+              className="w-full font-semibold border-gray-300 bg-white text-gray-700 hover:bg-gray-50 hover:text-gray-700 shadow-sm"
               disabled={isLoading}
               onClick={async () => {
                 setShowError(false);
