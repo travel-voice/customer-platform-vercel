@@ -4,9 +4,13 @@ import { createClient } from '@/lib/supabase/server';
 export async function POST(request: NextRequest) {
   try {
     const payload = await request.json();
+    
+    // Log the full payload for debugging
+    console.log('Vapi webhook received:', JSON.stringify(payload, null, 2));
+    
     const { message } = payload;
 
-    if (message.type === 'end-of-call-report') {
+    if (message?.type === 'end-of-call-report') {
       const { call } = message;
       
       if (!call) {
@@ -14,16 +18,26 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'No call data' }, { status: 400 });
       }
 
+      // Log call object to see what fields are available
+      console.log('Call object keys:', Object.keys(call));
+      console.log('Call assistant info:', {
+        assistantId: call.assistantId,
+        assistant: call.assistant,
+        assistantUuid: call.assistantUuid,
+      });
+
       const supabase = await createClient();
 
       // Find the agent based on vapi_assistant_id
-      // Note: The call object usually contains assistantId
-      const vapiAssistantId = call.assistantId;
+      // Try multiple possible field names
+      const vapiAssistantId = call.assistantId || call.assistant?.id || call.assistant;
       
       if (!vapiAssistantId) {
-        console.error('No assistant ID in call data');
+        console.error('No assistant ID in call data. Call object:', JSON.stringify(call, null, 2));
         return NextResponse.json({ error: 'No assistant ID' }, { status: 400 });
       }
+
+      console.log('Looking up agent with Vapi ID:', vapiAssistantId);
 
       const { data: agent, error: agentError } = await supabase
         .from('agents')
@@ -33,8 +47,18 @@ export async function POST(request: NextRequest) {
 
       if (agentError || !agent) {
         console.error('Agent not found for Vapi ID:', vapiAssistantId);
+        console.error('Supabase error:', agentError);
+        
+        // Log all agents to help debug
+        const { data: allAgents } = await supabase
+          .from('agents')
+          .select('name, vapi_assistant_id');
+        console.log('All agents in database:', allAgents);
+        
         return NextResponse.json({ error: 'Agent not found' }, { status: 404 });
       }
+
+      console.log('Found agent:', agent);
 
       // Insert call record
       const { error: insertError } = await supabase
