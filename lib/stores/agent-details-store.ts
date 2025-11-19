@@ -68,7 +68,9 @@ export const useAgentDetailsStore = create<AgentDetailsStore>((set, get) => ({
         model_id: 1,
         organisation_id: 1,
         retrieval_augmented_generation_uuid: '',
-        system_prompt: agent.system_prompt || ''
+        system_prompt: agent.system_prompt || '',
+        // Map advanced config
+        ...agent.advanced_config
       };
 
       set({
@@ -161,7 +163,9 @@ export const useAgentDetailsStore = create<AgentDetailsStore>((set, get) => ({
             system_prompt: agent.system_prompt || currentDetail.system_prompt,
             extraction_schema: agent.data_extraction_config 
                 ? { selectedIds: Object.keys(agent.data_extraction_config) }
-                : currentDetail.extraction_schema
+                : currentDetail.extraction_schema,
+            // Map advanced config
+            ...agent.advanced_config
         };
 
         set({

@@ -169,7 +169,7 @@ export default function AgentDetailsPage() {
   const fileInputRef = useRef<HTMLInputElement>(null);
   
   // Feature flags
-  const ADVANCED_COMING_SOON = true;
+  const ADVANCED_COMING_SOON = false;
 
   // Form hooks
   const contentForm = useForm<ContentFormData>({
@@ -232,8 +232,24 @@ export default function AgentDetailsPage() {
         voice_id: agentDetail.voice_id || "",
       });
       setEditedName(agentDetail.name || "");
+
+      // Reset advanced settings form
+      advancedSettingsForm.reset({
+        firstMessageMode: agentDetail.firstMessageMode || "assistant-speaks-first",
+        waitTimeBeforeSpeaking: agentDetail.waitTimeBeforeSpeaking ?? 0.4,
+        interruptionThreshold: agentDetail.interruptionThreshold ?? 2,
+        maxDuration: agentDetail.maxDuration || 600,
+        transcriptionLanguage: agentDetail.transcriptionLanguage || "en-US",
+        confidenceThreshold: agentDetail.confidenceThreshold ?? 0.7,
+        modelTemperature: agentDetail.modelTemperature ?? 0.7,
+        maxTokens: agentDetail.maxTokens || 256,
+        voicemailDetectionEnabled: agentDetail.voicemailDetectionEnabled ?? true,
+        voicemailMessage: agentDetail.voicemailMessage || "Sorry we missed you. Please leave a message and we'll get back to you shortly.",
+        beepMaxAwaitSeconds: agentDetail.beepMaxAwaitSeconds || 10,
+        backgroundSound: agentDetail.backgroundSound || "office",
+      });
     }
-  }, [agentDetail, contentForm, voiceForm]);
+  }, [agentDetail, contentForm, voiceForm, advancedSettingsForm]);
 
   // Load existing data extraction configuration when data tab is accessed
   useEffect(() => {

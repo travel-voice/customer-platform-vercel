@@ -13,13 +13,28 @@ interface VapiAssistant {
     model: string;
     messages?: Array<{ role: string; content: string }>;
     systemPrompt?: string;
+    temperature?: number;
+    maxTokens?: number;
   };
   voice?: {
     provider: string;
     voiceId: string;
   };
   firstMessage?: string;
+  firstMessageMode?: 'assistant-speaks-first' | 'assistant-waits-for-user';
   serverUrl?: string;
+  maxDurationSeconds?: number;
+  backgroundSound?: string;
+  voicemailDetection?: {
+    provider: 'twilio' | 'vonage' | 'vapi';
+    voicemailMessage?: string;
+    enabled?: boolean;
+    machineDetectionTimeout?: number;
+  };
+  transcriber?: {
+    provider: string;
+    language?: string;
+  };
   artifactPlan?: {
     structuredOutputIds?: string[];
   };
@@ -45,6 +60,18 @@ interface UpdateAssistantParams {
   artifactPlan?: {
     structuredOutputIds?: string[];
   };
+  // Advanced settings
+  firstMessageMode?: 'assistant-speaks-first' | 'assistant-waits-for-user';
+  maxDurationSeconds?: number;
+  backgroundSound?: string;
+  voicemailDetection?: {
+    enabled: boolean;
+    msg?: string; // machineDetectionMessage
+    timeout?: number; // machineDetectionTimeout
+  };
+  transcriptionLanguage?: string;
+  modelTemperature?: number;
+  maxTokens?: number;
 }
 
 interface StructuredOutputSchema {
@@ -153,11 +180,43 @@ class VapiClient {
     if (params.firstMessage) payload.firstMessage = params.firstMessage;
     if (params.serverUrl) payload.serverUrl = params.serverUrl;
     if (params.artifactPlan) payload.artifactPlan = params.artifactPlan;
+    
+    // Advanced properties
+    if (params.firstMessageMode) payload.firstMessageMode = params.firstMessageMode;
+    if (params.maxDurationSeconds) payload.maxDurationSeconds = params.maxDurationSeconds;
+    if (params.backgroundSound) payload.backgroundSound = params.backgroundSound === 'off' ? undefined : params.backgroundSound;
 
-    if (params.systemPrompt || params.model) {
+    if (params.voicemailDetection) {
+      payload.voicemailDetection = {
+        provider: 'twilio', // Default to Twilio for voicemail detection
+        enabled: params.voicemailDetection.enabled,
+      };
+      if (params.voicemailDetection.msg) {
+        payload.voicemailDetection.machineDetectionMessage = params.voicemailDetection.msg;
+      }
+      if (params.voicemailDetection.timeout) {
+        payload.voicemailDetection.machineDetectionTimeout = params.voicemailDetection.timeout;
+      }
+    }
+
+    if (params.transcriptionLanguage) {
+        payload.transcriber = {
+            provider: 'deepgram', // Default provider
+            language: params.transcriptionLanguage
+        };
+    }
+
+    // Model configuration
+    if (params.systemPrompt || params.model || params.modelTemperature || params.maxTokens) {
+      // We need to be careful not to overwrite existing model config if we don't have it.
+      // But Vapi API requires full model object usually.
+      // For this implementation, we reconstruct what we know.
+      
       payload.model = {
         provider: 'openai',
         model: params.model || 'gpt-4o-mini',
+        temperature: params.modelTemperature ?? 0.7,
+        maxTokens: params.maxTokens ?? 250,
       };
 
       if (params.systemPrompt) {

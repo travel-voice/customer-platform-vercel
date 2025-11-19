@@ -37,6 +37,20 @@ export interface ICharacterDetail {
   voice_id: string;
   // Optional extraction schema describing which datapoints to extract post-call
   extraction_schema?: IExtractionSchema;
+  
+  // Advanced Configuration
+  firstMessageMode?: "assistant-speaks-first" | "assistant-waits-for-user";
+  waitTimeBeforeSpeaking?: number;
+  interruptionThreshold?: number;
+  maxDuration?: number;
+  transcriptionLanguage?: string;
+  confidenceThreshold?: number;
+  modelTemperature?: number;
+  maxTokens?: number;
+  voicemailDetectionEnabled?: boolean;
+  voicemailMessage?: string;
+  beepMaxAwaitSeconds?: number;
+  backgroundSound?: string;
 }
 
 // Character stats from transcripts API

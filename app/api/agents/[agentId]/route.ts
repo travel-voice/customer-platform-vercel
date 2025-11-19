@@ -144,7 +144,13 @@ export async function PATCH(
     }
 
     const body = await request.json();
-    const { name, image, voice_id, first_message, system_prompt, data_extraction_config } = body;
+    const { 
+      name, image, voice_id, first_message, system_prompt, data_extraction_config,
+      // Advanced settings
+      firstMessageMode, waitTimeBeforeSpeaking, interruptionThreshold, maxDuration,
+      transcriptionLanguage, confidenceThreshold, modelTemperature, maxTokens,
+      voicemailDetectionEnabled, voicemailMessage, beepMaxAwaitSeconds, backgroundSound
+    } = body;
 
     // Build update object for database
     const dbUpdate: any = {};
@@ -154,6 +160,27 @@ export async function PATCH(
     if (first_message !== undefined) dbUpdate.first_message = first_message;
     if (system_prompt !== undefined) dbUpdate.system_prompt = system_prompt;
     if (data_extraction_config !== undefined) dbUpdate.data_extraction_config = data_extraction_config;
+
+    // Handle advanced config
+    const advancedConfig = existingAgent.advanced_config || {};
+    let hasAdvancedUpdates = false;
+
+    if (firstMessageMode !== undefined) { advancedConfig.firstMessageMode = firstMessageMode; hasAdvancedUpdates = true; }
+    if (waitTimeBeforeSpeaking !== undefined) { advancedConfig.waitTimeBeforeSpeaking = waitTimeBeforeSpeaking; hasAdvancedUpdates = true; }
+    if (interruptionThreshold !== undefined) { advancedConfig.interruptionThreshold = interruptionThreshold; hasAdvancedUpdates = true; }
+    if (maxDuration !== undefined) { advancedConfig.maxDuration = maxDuration; hasAdvancedUpdates = true; }
+    if (transcriptionLanguage !== undefined) { advancedConfig.transcriptionLanguage = transcriptionLanguage; hasAdvancedUpdates = true; }
+    if (confidenceThreshold !== undefined) { advancedConfig.confidenceThreshold = confidenceThreshold; hasAdvancedUpdates = true; }
+    if (modelTemperature !== undefined) { advancedConfig.modelTemperature = modelTemperature; hasAdvancedUpdates = true; }
+    if (maxTokens !== undefined) { advancedConfig.maxTokens = maxTokens; hasAdvancedUpdates = true; }
+    if (voicemailDetectionEnabled !== undefined) { advancedConfig.voicemailDetectionEnabled = voicemailDetectionEnabled; hasAdvancedUpdates = true; }
+    if (voicemailMessage !== undefined) { advancedConfig.voicemailMessage = voicemailMessage; hasAdvancedUpdates = true; }
+    if (beepMaxAwaitSeconds !== undefined) { advancedConfig.beepMaxAwaitSeconds = beepMaxAwaitSeconds; hasAdvancedUpdates = true; }
+    if (backgroundSound !== undefined) { advancedConfig.backgroundSound = backgroundSound; hasAdvancedUpdates = true; }
+
+    if (hasAdvancedUpdates) {
+      dbUpdate.advanced_config = advancedConfig;
+    }
 
     // Handle structured data extraction configuration
     let structuredOutputId = existingAgent.vapi_structured_output_id;
@@ -209,14 +236,37 @@ export async function PATCH(
     }
 
     // 1. Update in Vapi if we have vapi_assistant_id and relevant fields changed
-    if (existingAgent.vapi_assistant_id && (name || voice_id || first_message || system_prompt)) {
+    if (existingAgent.vapi_assistant_id) {
       try {
-        await vapiClient.updateAssistant(existingAgent.vapi_assistant_id, {
-          name,
-          voiceId: voice_id,
-          firstMessage: first_message,
-          systemPrompt: system_prompt,
-        });
+        // Prepare Vapi update payload
+        const vapiUpdate: any = {};
+        
+        if (name !== undefined) vapiUpdate.name = name;
+        if (voice_id !== undefined) vapiUpdate.voiceId = voice_id;
+        if (first_message !== undefined) vapiUpdate.firstMessage = first_message;
+        if (system_prompt !== undefined) vapiUpdate.systemPrompt = system_prompt;
+
+        // Map advanced settings to Vapi
+        if (hasAdvancedUpdates) {
+           if (advancedConfig.firstMessageMode) vapiUpdate.firstMessageMode = advancedConfig.firstMessageMode;
+           if (advancedConfig.maxDuration) vapiUpdate.maxDurationSeconds = advancedConfig.maxDuration;
+           if (advancedConfig.backgroundSound) vapiUpdate.backgroundSound = advancedConfig.backgroundSound;
+           if (advancedConfig.transcriptionLanguage) vapiUpdate.transcriptionLanguage = advancedConfig.transcriptionLanguage;
+           if (advancedConfig.modelTemperature) vapiUpdate.modelTemperature = advancedConfig.modelTemperature;
+           if (advancedConfig.maxTokens) vapiUpdate.maxTokens = advancedConfig.maxTokens;
+           
+           if (advancedConfig.voicemailDetectionEnabled !== undefined) {
+             vapiUpdate.voicemailDetection = {
+               enabled: advancedConfig.voicemailDetectionEnabled,
+               msg: advancedConfig.voicemailMessage,
+               timeout: advancedConfig.beepMaxAwaitSeconds
+             };
+           }
+        }
+
+        if (Object.keys(vapiUpdate).length > 0) {
+            await vapiClient.updateAssistant(existingAgent.vapi_assistant_id, vapiUpdate);
+        }
       } catch (vapiError: any) {
         console.error('Vapi update error:', vapiError);
         // Continue with database update even if Vapi fails
