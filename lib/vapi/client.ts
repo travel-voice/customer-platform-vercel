@@ -83,7 +83,7 @@ class VapiClient {
       firstMessage: params.firstMessage || 'Hello! How can I help you today?',
       model: {
         provider: 'openai',
-        model: params.model || 'gpt-4',
+        model: params.model || 'gpt-4o-mini',
         messages: [
           {
             role: 'system',
@@ -94,6 +94,7 @@ class VapiClient {
       voice: params.voiceId ? {
         provider: '11labs',
         voiceId: params.voiceId,
+        model: 'eleven_turbo_v2_5',
       } : undefined,
     };
 
@@ -123,7 +124,7 @@ class VapiClient {
     if (params.systemPrompt || params.model) {
       payload.model = {
         provider: 'openai',
-        model: params.model || 'gpt-4',
+        model: params.model || 'gpt-4o-mini',
       };
 
       if (params.systemPrompt) {
@@ -140,6 +141,7 @@ class VapiClient {
       payload.voice = {
         provider: '11labs',
         voiceId: params.voiceId,
+        model: 'eleven_turbo_v2_5',
       };
     }
 
