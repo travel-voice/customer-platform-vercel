@@ -60,6 +60,72 @@ export async function POST(request: NextRequest) {
 
       console.log('Found agent:', agent);
 
+      // Prepare call details
+      const durationSeconds = Math.round(
+        message.durationSeconds ??
+        message.durationMs
+          ? message.durationMs / 1000
+          : call.durationSeconds ??
+            call.durationMinutes
+              ? call.durationMinutes * 60
+              : 0
+      );
+
+      const recordingUrl =
+        message.recordingUrl ||
+        message.artifact?.recording?.mono?.combinedUrl ||
+        message.artifact?.recording?.stereoUrl ||
+        message.stereoRecordingUrl ||
+        null;
+
+      const transcriptMessages =
+        message.artifact?.messages ||
+        message.messages ||
+        [];
+
+      const transcriptText =
+        message.transcript ||
+        message.artifact?.transcript ||
+        null;
+
+      const summary =
+        message.summary ||
+        message.analysis?.summary ||
+        null;
+
+      const callUrl =
+        message.artifact?.variables?.transport?.callUrl ||
+        message.artifact?.variableValues?.transport?.callUrl ||
+        call.transport?.callUrl ||
+        call.webCallUrl ||
+        null;
+
+      const extractedData = {
+        summary,
+        transcriptText,
+        analysis: message.analysis,
+        logUrl: message.logUrl,
+        recording: message.artifact?.recording,
+        recordingUrl,
+        stereoRecordingUrl: message.stereoRecordingUrl,
+        callUrls: {
+          callUrl,
+          webCallUrl: call.webCallUrl,
+          monitor: call.monitor,
+        },
+        messagesOpenAIFormatted: message.artifact?.messagesOpenAIFormatted,
+        variables: message.artifact?.variables,
+        variableValues: message.artifact?.variableValues,
+        performanceMetrics: message.artifact?.performanceMetrics,
+        scorecards: message.artifact?.scorecards,
+        transfers: message.artifact?.transfers,
+        costs: message.costs,
+        costBreakdown: message.costBreakdown,
+        startedAt: message.startedAt,
+        endedAt: message.endedAt,
+        endedReason: message.endedReason,
+      };
+
       // Insert call record
       const { error: insertError } = await supabase
         .from('calls')
@@ -67,12 +133,17 @@ export async function POST(request: NextRequest) {
           agent_uuid: agent.uuid,
           organization_uuid: agent.organization_uuid,
           vapi_call_id: call.id,
-          duration_seconds: call.durationSeconds || 0, // Fallback if needed
-          sentiment: mapSentiment(call.analysis?.sentiment),
-          recording_url: call.recordingUrl,
-          transcript: call.transcript || call.artifact?.transcript, // Depending on Vapi version
-          extracted_data: call.analysis?.structuredData, // If using structured data
-          status: call.status === 'ended' ? 'completed' : 'failed',
+          duration_seconds: durationSeconds,
+          sentiment: mapSentiment(undefined),
+          recording_url: recordingUrl,
+          transcript: transcriptMessages,
+          extracted_data: extractedData,
+          status:
+            message.endedReason === 'customer-ended-call' ||
+            call.status === 'completed' ||
+            call.status === 'ended'
+              ? 'completed'
+              : 'failed',
         });
 
       if (insertError) {
