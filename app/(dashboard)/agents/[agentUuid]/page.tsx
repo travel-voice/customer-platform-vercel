@@ -1,7 +1,6 @@
 "use client";
 
 import { useEffect, useState, useMemo, useRef } from "react";
-import Script from "next/script";
 import { useParams, useRouter } from "next/navigation";
 import { zodResolver } from "@hookform/resolvers/zod";
 import {
@@ -63,15 +62,9 @@ import { Textarea } from "@/components/ui/textarea";
 import {PROMPT_TEMPLATES } from "@/lib/constants/prompt-templates";
 import { useAuthStore } from "@/lib/stores/auth-store";
 import { useAgentDetailsStore } from "@/lib/stores/agent-details-store";
+import { AgentCallModal } from "@/components/agent-call-modal";
 
 const BACKGROUND_SOUNDS = ["office", "off"];
-
-// Type augmentation for the NV widget initializer injected by the external script
-declare global {
-  interface Window {
-    getNeuralVoicePopupSettings?: () => void;
-  }
-}
 
 // Form schemas
 const contentFormSchema = z.object({
@@ -143,6 +136,8 @@ export default function AgentDetailsPage() {
     keyInfo: ""
   });
   
+  const [isCallModalOpen, setIsCallModalOpen] = useState(false);
+
   // Data tab state
   const [dataSearch, setDataSearch] = useState("");
   const [dataCategory, setDataCategory] = useState("all");
@@ -162,8 +157,6 @@ export default function AgentDetailsPage() {
   
   // Feature flags
   const ADVANCED_COMING_SOON = true;
-
-  // (NV script now loaded via Next <Script>)
 
   // Form hooks
   const contentForm = useForm<ContentFormData>({
@@ -251,36 +244,6 @@ export default function AgentDetailsPage() {
       loadDataExtraction();
     }
   }, [activeTab, user?.organisation_uuid, agentUuid, getDataExtraction]);
-
-  // NV script is injected via Next <Script> below, and initialized on load
-
-  // Re-init NV widget when activation_id becomes available or changes
-  useEffect(() => {
-    if (!agentDetail?.activation_id) return;
-    if (typeof window !== 'undefined') {
-      // Ensure nv-app is mounted (Next.js loads script after DOMContentLoaded)
-      (window as any).initWidget?.('nv_widget');
-      // Then rebind click handlers for nv-<id> buttons
-      (window as any).getNeuralVoicePopupSettings?.();
-    }
-  }, [agentDetail?.activation_id]);
-
-  // Debug: log native click events on the Try Now button
-  useEffect(() => {
-    const btnId = agentDetail?.activation_id ? `nv-${agentDetail.activation_id}` : null;
-    if (!btnId) return;
-    const btn = document.getElementById(btnId) as HTMLButtonElement | null;
-    if (!btn) {
-      console.log('[NV] Try Now button not found for id:', btnId);
-      return;
-    }
-    console.log('[NV] Try Now button found, attaching click logger:', btnId);
-    const handler = () => console.log('[NV] Native click event fired on Try Now button');
-    btn.addEventListener('click', handler);
-    return () => {
-      btn.removeEventListener('click', handler);
-    };
-  }, [agentDetail?.activation_id]);
 
   // Cleanup image preview URL on component unmount
   useEffect(() => {
@@ -370,7 +333,7 @@ export default function AgentDetailsPage() {
       // The error state is already handled by the store, 
       // but we could add a toast notification here if needed
       // intentionally do not rethrow to avoid unhandled errors in event handlers
-    }
+      }
   };
 
   // Image processing function
@@ -677,16 +640,7 @@ export default function AgentDetailsPage() {
 
   return (
     <div className="space-y-8">
-      <Script
-        id="nv-widget-script"
-        src="https://nv-app.neural-voice.ai/nv-app/nv-app.js"
-        strategy="afterInteractive"
-        onLoad={() => {
-          // Mount nv-app and bind handlers when the script finishes loading
-          (window as any).initWidget?.('nv_widget');
-          (window as any).getNeuralVoicePopupSettings?.();
-        }}
-      />
+      
       {/* Enhanced Header */}
       <div className="relative overflow-hidden rounded-2xl bg-gradient-to-br from-blue-50 via-indigo-50 to-purple-50 dark:from-blue-950/20 dark:via-indigo-950/20 dark:to-purple-950/20 p-8">
         <div className="relative z-10">
@@ -705,9 +659,8 @@ export default function AgentDetailsPage() {
             {agentDetail.activation_id && (
               <button
                 type="button"
-                id={`nv-${agentDetail.activation_id}`}
                 className="inline-flex items-center justify-center gap-2 rounded-xl bg-[#1AADF0] px-6 py-3 text-sm font-semibold text-white shadow-lg hover:bg-[#0996d4] focus-visible:outline-none focus-visible:ring-2 focus-visible:ring-[#1AADF0] focus-visible:ring-offset-2 transition-all duration-200 hover:scale-105 cursor-pointer"
-                onClick={() => console.log('[NV] React onClick fired on Try Now button')}
+                onClick={() => setIsCallModalOpen(true)}
               >
                 <Phone className="h-4 w-4" />
                 Try Now
@@ -1884,6 +1837,15 @@ export default function AgentDetailsPage() {
           </DialogFooter>
         </DialogContent>
       </Dialog>
+
+      {/* Vapi Call Modal */}
+      <AgentCallModal
+        isOpen={isCallModalOpen}
+        onClose={() => setIsCallModalOpen(false)}
+        assistantId={agentDetail.activation_id || ""}
+        agentName={agentDetail.name}
+        agentImage={agentDetail.avatar_url}
+      />
     </div>
   );
 } 
