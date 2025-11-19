@@ -80,10 +80,30 @@ export async function getCroppedImg(
 
   // As a blob
   return new Promise((resolve, reject) => {
+    // If image is larger than 800px width, resize it
+    // This is a basic optimization to avoid uploading massive images
+    const MAX_WIDTH = 800;
+    const scale = canvas.width > MAX_WIDTH ? MAX_WIDTH / canvas.width : 1;
+    
+    if (scale < 1) {
+      const tempCanvas = document.createElement('canvas');
+      tempCanvas.width = canvas.width * scale;
+      tempCanvas.height = canvas.height * scale;
+      const tempCtx = tempCanvas.getContext('2d');
+      
+      if (tempCtx) {
+          tempCtx.drawImage(canvas, 0, 0, tempCanvas.width, tempCanvas.height);
+          tempCanvas.toBlob((file) => {
+            if (file) resolve(file)
+            else reject(new Error('Canvas is empty'))
+          }, 'image/png', 0.9)
+          return;
+      }
+    }
+
     canvas.toBlob((file) => {
       if (file) resolve(file)
       else reject(new Error('Canvas is empty'))
-    }, 'image/png')
+    }, 'image/png', 0.9)
   })
 }
-

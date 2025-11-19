@@ -142,6 +142,10 @@ export async function POST(request: NextRequest) {
     const origin = request.headers.get('origin') || `https://${request.headers.get('host')}`;
     const serverUrl = `${origin}/api/vapi/webhook`;
 
+    // 1. Create assistant in Vapi and DB in parallel (or optimize order)
+    // Actually, we need Vapi ID for DB, so we must do Vapi first.
+    // However, we can optimize by not waiting for non-critical things if any.
+    
     // 1. Create assistant in Vapi
     const vapiAssistant = await vapiClient.createAssistant({
       name,

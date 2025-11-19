@@ -342,7 +342,7 @@ export function AgentCreationModal({
                           Choose Image
                         </Button>
                         <p className="text-sm text-gray-600 mt-2">
-                          PNG/JPG, max 2MB • Auto-cropped to circle
+                          PNG/JPG, max 5MB
                         </p>
                         <input
                           ref={fileInputRef}

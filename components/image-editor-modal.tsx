@@ -12,9 +12,10 @@ import {
 } from "@/components/ui/dialog";
 import { Slider } from "@/components/ui/slider";
 import { Label } from "@/components/ui/label";
-import { Loader2, RotateCcw, Wand2, Check, ZoomIn } from "lucide-react";
+import { RotateCcw, Wand2, Check, ZoomIn } from "lucide-react";
 import { getCroppedImg } from "@/lib/image-utils";
 import { removeBackground } from "@imgly/background-removal";
+import { Loader } from "@/components/ui/loader";
 
 interface ImageEditorModalProps {
   open: boolean;
@@ -120,10 +121,11 @@ export function ImageEditorModal({
           
           {/* Loading overlay for background removal */}
           {isRemovingBackground && (
-             <div className="absolute inset-0 flex flex-col items-center justify-center bg-black/50 text-white z-10 backdrop-blur-sm">
-               <Loader2 className="w-10 h-10 animate-spin mb-2" />
-               <p className="text-sm font-medium">Removing background...</p>
-               <p className="text-xs opacity-80">This may take a moment</p>
+             <div className="absolute inset-0 flex flex-col items-center justify-center bg-white/80 dark:bg-gray-900/80 z-10 backdrop-blur-sm">
+               <Loader 
+                 text="Removing Background" 
+                 subtext="AI is processing your image..." 
+               />
              </div>
           )}
         </div>
@@ -180,13 +182,10 @@ export function ImageEditorModal({
           <Button 
             onClick={handleSave} 
             disabled={isProcessing || isRemovingBackground}
-            className="bg-blue-600 hover:bg-blue-700 text-white"
+            className="bg-blue-600 hover:bg-blue-700 text-white min-w-[120px]"
           >
             {isProcessing ? (
-              <>
-                <Loader2 className="w-4 h-4 mr-2 animate-spin" />
-                Processing...
-              </>
+              <Loader className="h-6 w-6 p-0" text="" subtext="" />
             ) : (
               <>
                 <Check className="w-4 h-4 mr-2" />
