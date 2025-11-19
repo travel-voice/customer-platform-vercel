@@ -10,6 +10,7 @@
   },
   "dependencies": {
     "@hookform/resolvers": "^5.1.1",
+    "@imgly/background-removal": "^1.7.0",
     "@radix-ui/react-alert-dialog": "^1.1.14",
     "@radix-ui/react-avatar": "^1.1.10",
     "@radix-ui/react-dialog": "^1.1.14",
@@ -38,6 +39,7 @@
     "openai": "^5.10.1",
     "react": "19.1.0",
     "react-dom": "19.1.0",
+    "react-easy-crop": "^5.5.3",
     "react-hook-form": "^7.60.0",
     "react-is": "^19.1.0",
     "recharts": "^3.1.0",

@@ -36,6 +36,8 @@ import { RadioGroup, RadioGroupItem } from "@/components/ui/radio-group";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { VOICES_LIST } from "@/lib/types/agents";
 
+import { ImageEditorModal } from "./image-editor-modal";
+
 // Infer gender from the provided name using common name lists and simple heuristics
 function inferGenderFromName(name: string): 'male' | 'female' | 'unknown' {
   const firstName = name.trim().split(/\s+/)[0]?.toLowerCase() || '';
@@ -85,6 +87,8 @@ export function AgentCreationModal({
 }: AgentCreationModalProps) {
   const [previewUrl, setPreviewUrl] = useState<string | null>(null);
   const [playingVoiceId, setPlayingVoiceId] = useState<string | null>(null);
+  const [isImageEditorOpen, setIsImageEditorOpen] = useState(false);
+  const [rawImageSrc, setRawImageSrc] = useState<string | null>(null);
   const audioRef = useRef<HTMLAudioElement | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   
@@ -114,61 +118,30 @@ export function AgentCreationModal({
       return;
     }
 
-    // Validate file size (2MB limit)
-    if (file.size > 2 * 1024 * 1024) {
-      alert('Image must be under 2MB');
+    // Validate file size (5MB limit)
+    if (file.size > 5 * 1024 * 1024) {
+      alert('Image must be under 5MB');
       return;
     }
 
+    const url = URL.createObjectURL(file);
+    setRawImageSrc(url);
+    setIsImageEditorOpen(true);
+    
+    // Reset input so same file can be selected again if needed
+    event.target.value = '';
+  };
+
+  const handleImageSave = (blob: Blob) => {
+    // Create file from blob
+    const file = new File([blob], "avatar.png", { type: "image/png" });
     form.setValue('image', file);
     
     // Create preview URL
-    const url = URL.createObjectURL(file);
+    const url = URL.createObjectURL(blob);
     setPreviewUrl(url);
-  };
-
-  const processImageToBlob = (file: File): Promise<Blob> => {
-    return new Promise((resolve, reject) => {
-      const canvas = document.createElement('canvas');
-      const ctx = canvas.getContext('2d');
-      const img = new Image();
-      
-      img.onload = () => {
-        // Set canvas size to 500x500 (circular crop)
-        canvas.width = 500;
-        canvas.height = 500;
-        
-        if (!ctx) {
-          reject(new Error('Failed to get canvas context'));
-          return;
-        }
-
-        // Create circular clipping path
-        ctx.beginPath();
-        ctx.arc(250, 250, 250, 0, Math.PI * 2);
-        ctx.clip();
-
-        // Calculate dimensions to maintain aspect ratio
-        const size = Math.min(img.width, img.height);
-        const x = (img.width - size) / 2;
-        const y = (img.height - size) / 2;
-
-        // Draw and crop image
-        ctx.drawImage(img, x, y, size, size, 0, 0, 500, 500);
-        
-        // Convert to blob
-        canvas.toBlob((blob) => {
-          if (blob) {
-            resolve(blob);
-          } else {
-            reject(new Error('Failed to create blob'));
-          }
-        }, 'image/png');
-      };
-      
-      img.onerror = () => reject(new Error('Failed to load image'));
-      img.src = URL.createObjectURL(file);
-    });
+    
+    setIsImageEditorOpen(false);
   };
 
   const playVoicePreview = (voiceId: string) => {
@@ -198,12 +171,9 @@ export function AgentCreationModal({
       
       if (data.image) {
         try {
-          // Process image (crop/resize)
-          const processedBlob = await processImageToBlob(data.image);
-
           // Create form data for upload
           const formData = new FormData();
-          formData.append('file', processedBlob, 'avatar.png');
+          formData.append('file', data.image); // Image is already processed by ImageEditorModal
 
           // Upload image
           const uploadResponse = await fetch('/api/upload/image', {
@@ -631,6 +601,14 @@ export function AgentCreationModal({
 
 
       </DialogContent>
+
+      <ImageEditorModal
+        open={isImageEditorOpen}
+        onOpenChange={setIsImageEditorOpen}
+        imageSrc={rawImageSrc}
+        onSave={handleImageSave}
+        onCancel={() => setIsImageEditorOpen(false)}
+      />
     </Dialog>
   );
 } 
