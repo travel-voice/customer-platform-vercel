@@ -100,9 +100,20 @@ export async function POST(request: NextRequest) {
         call.webCallUrl ||
         null;
 
+      // Extract structured data from Vapi's structured output
+      // This will be in message.artifact.structuredData as an array
+      const structuredData = message.artifact?.structuredData?.[0] || null;
+      
+      console.log('Structured data extracted:', structuredData ? 'Yes' : 'No');
+      if (structuredData) {
+        console.log('Structured data keys:', Object.keys(structuredData));
+        console.log('Structured data sample:', JSON.stringify(structuredData, null, 2));
+      }
+
       const extractedData = {
         summary,
         transcriptText,
+        structuredData, // Add the structured data here
         analysis: message.analysis,
         logUrl: message.logUrl,
         recording: message.artifact?.recording,

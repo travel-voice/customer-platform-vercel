@@ -20,6 +20,9 @@ interface VapiAssistant {
   };
   firstMessage?: string;
   serverUrl?: string;
+  artifactPlan?: {
+    structuredOutputIds?: string[];
+  };
   // Add other Vapi assistant properties as needed
 }
 
@@ -39,6 +42,35 @@ interface UpdateAssistantParams {
   voiceId?: string;
   model?: string;
   serverUrl?: string;
+  artifactPlan?: {
+    structuredOutputIds?: string[];
+  };
+}
+
+interface StructuredOutputSchema {
+  type: "object";
+  properties: Record<string, any>;
+  required?: string[];
+  description?: string;
+}
+
+interface CreateStructuredOutputParams {
+  name: string;
+  schema: StructuredOutputSchema;
+}
+
+interface UpdateStructuredOutputParams {
+  name?: string;
+  schema?: StructuredOutputSchema;
+}
+
+interface StructuredOutput {
+  id: string;
+  name: string;
+  schema: StructuredOutputSchema;
+  orgId: string;
+  createdAt: string;
+  updatedAt: string;
 }
 
 class VapiClient {
@@ -120,6 +152,7 @@ class VapiClient {
     if (params.name) payload.name = params.name;
     if (params.firstMessage) payload.firstMessage = params.firstMessage;
     if (params.serverUrl) payload.serverUrl = params.serverUrl;
+    if (params.artifactPlan) payload.artifactPlan = params.artifactPlan;
 
     if (params.systemPrompt || params.model) {
       payload.model = {
@@ -177,10 +210,41 @@ class VapiClient {
       method: 'GET',
     });
   }
+
+  /**
+   * Create a structured output configuration
+   */
+  async createStructuredOutput(params: CreateStructuredOutputParams): Promise<StructuredOutput> {
+    return this.request<StructuredOutput>('/structured-output', {
+      method: 'POST',
+      body: JSON.stringify(params),
+    });
+  }
+
+  /**
+   * Update a structured output configuration
+   */
+  async updateStructuredOutput(
+    id: string,
+    params: UpdateStructuredOutputParams
+  ): Promise<StructuredOutput> {
+    return this.request<StructuredOutput>(`/structured-output/${id}`, {
+      method: 'PATCH',
+      body: JSON.stringify(params),
+    });
+  }
 }
 
 // Export a singleton instance
 export const vapiClient = new VapiClient(process.env.VAPI_PRIVATE_KEY!);
 
 // Export types
-export type { VapiAssistant, CreateAssistantParams, UpdateAssistantParams };
+export type { 
+  VapiAssistant, 
+  CreateAssistantParams, 
+  UpdateAssistantParams,
+  StructuredOutput,
+  CreateStructuredOutputParams,
+  UpdateStructuredOutputParams,
+  StructuredOutputSchema
+};

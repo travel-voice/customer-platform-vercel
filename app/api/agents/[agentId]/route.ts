@@ -1,6 +1,55 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
-import { vapiClient } from '@/lib/vapi/client';
+import { vapiClient, StructuredOutputSchema } from '@/lib/vapi/client';
+import { TRAVEL_DATAPOINTS } from '@/lib/constants/travel-datapoints';
+
+/**
+ * Build a Vapi structured output JSON schema from data extraction config
+ */
+function buildStructuredOutputSchema(
+  dataExtractionConfig: Record<string, { description: string; type: string }>
+): StructuredOutputSchema {
+  const properties: Record<string, any> = {};
+  const required: string[] = [];
+
+  // Transform each configured datapoint into a schema property
+  for (const [datapointId, config] of Object.entries(dataExtractionConfig)) {
+    // Find the full datapoint definition to get the label
+    const datapoint = TRAVEL_DATAPOINTS.find(dp => dp.id === datapointId);
+    const label = datapoint?.label || datapointId;
+
+    // Map our type to JSON schema type
+    let schemaType: string;
+    switch (config.type) {
+      case 'integer':
+        schemaType = 'integer';
+        break;
+      case 'number':
+        schemaType = 'number';
+        break;
+      case 'boolean':
+        schemaType = 'boolean';
+        break;
+      default:
+        schemaType = 'string';
+    }
+
+    properties[datapointId] = {
+      type: schemaType,
+      description: config.description,
+    };
+
+    // For now, we'll make all fields optional to avoid extraction failures
+    // You can mark specific fields as required based on business logic
+  }
+
+  return {
+    type: 'object',
+    properties,
+    required, // Empty for now - all fields optional
+    description: 'Extracted data from the call conversation',
+  };
+}
 
 /**
  * GET /api/agents/[agentId]
@@ -105,6 +154,59 @@ export async function PATCH(
     if (first_message !== undefined) dbUpdate.first_message = first_message;
     if (system_prompt !== undefined) dbUpdate.system_prompt = system_prompt;
     if (data_extraction_config !== undefined) dbUpdate.data_extraction_config = data_extraction_config;
+
+    // Handle structured data extraction configuration
+    let structuredOutputId = existingAgent.vapi_structured_output_id;
+    
+    if (data_extraction_config !== undefined && existingAgent.vapi_assistant_id) {
+      try {
+        // Build the JSON schema from data_extraction_config
+        const schema = buildStructuredOutputSchema(data_extraction_config);
+        
+        if (Object.keys(data_extraction_config).length > 0) {
+          // There are data points to extract
+          if (structuredOutputId) {
+            // Update existing structured output
+            await vapiClient.updateStructuredOutput(structuredOutputId, {
+              name: `${existingAgent.name || name || 'Agent'} - Data Extraction`,
+              schema,
+            });
+            console.log('Updated Vapi structured output:', structuredOutputId);
+          } else {
+            // Create new structured output
+            const structuredOutput = await vapiClient.createStructuredOutput({
+              name: `${existingAgent.name || name || 'Agent'} - Data Extraction`,
+              schema,
+            });
+            structuredOutputId = structuredOutput.id;
+            dbUpdate.vapi_structured_output_id = structuredOutputId;
+            console.log('Created Vapi structured output:', structuredOutputId);
+          }
+
+          // Link the structured output to the assistant
+          await vapiClient.updateAssistant(existingAgent.vapi_assistant_id, {
+            artifactPlan: {
+              structuredOutputIds: [structuredOutputId],
+            },
+          });
+          console.log('Linked structured output to assistant');
+        } else {
+          // No data points selected - remove structured output link
+          if (structuredOutputId) {
+            await vapiClient.updateAssistant(existingAgent.vapi_assistant_id, {
+              artifactPlan: {
+                structuredOutputIds: [],
+              },
+            });
+            dbUpdate.vapi_structured_output_id = null;
+            console.log('Removed structured output link from assistant');
+          }
+        }
+      } catch (structuredOutputError: any) {
+        console.error('Structured output update error:', structuredOutputError);
+        // Continue with database update even if structured output fails
+      }
+    }
 
     // 1. Update in Vapi if we have vapi_assistant_id and relevant fields changed
     if (existingAgent.vapi_assistant_id && (name || voice_id || first_message || system_prompt)) {
