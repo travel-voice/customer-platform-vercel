@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 import { createClient } from '@/lib/supabase/client';
 import { UUID } from '@/lib/types/auth';
-import { ICallRecord } from '@/lib/types/dashboard';
+import { ICallRecord } from '@/lib/types/call-details';
 
 interface CallDetailsStore {
   // State
@@ -48,22 +48,22 @@ export const useCallDetailsStore = create<CallDetailsStore>((set) => ({
       const callRecord: ICallRecord = {
         id: callUuid,
         uuid: data.uuid,
-        key: data.uuid, // Added key property to match interface
         date: new Date(data.created_at),
         duration: data.duration_seconds || 0,
-        // The interface expects 'handler' property but previous implementation mapped characterName/characterId
-        // I'll stick to ICallRecord interface which has 'handler'
-        handler: {
-            id: data.agent_uuid,
-            name: data.agents?.name || characterName || 'Assistant'
-        },
-        sentiment: data.sentiment || 'neutral',
-        // sentimentScore: 0, // Not in ICallRecord interface from dashboard.ts, but was in previous file. Removing to match interface.
-        audio: data.recording_url, // mapped to audio in dashboard.ts interface
-        messages: Array.isArray(data.transcript) ? data.transcript : [],
+        characterName: data.agents?.name || characterName || 'Assistant',
+        characterId: data.agent_uuid,
+        sentiment: (data.sentiment || 'neutral') as 'positive' | 'neutral' | 'negative',
+        sentimentScore: 0.5, // Default neutral score, could be calculated from sentiment if needed
+        audioUrl: data.recording_url || '',
+        messages: Array.isArray(data.transcript) 
+          ? data.transcript.map((msg: any) => ({
+              role: msg.role === 'bot' ? 'assistant' as const : 'user' as const,
+              message: msg.message || msg.content || '',
+              timestamp: msg.time ? new Date(msg.time) : undefined,
+            }))
+          : [],
         summary: data.extracted_data ? JSON.stringify(data.extracted_data) : '',
-        // Additional fields not in ICallRecord but maybe useful?
-        // Keeping it strictly to ICallRecord to avoid type errors
+        structuredData: typeof data.extracted_data === 'object' ? data.extracted_data : undefined,
       };
       
       set({ 
