@@ -1,0 +1,51 @@
+steps:
+  - name: gcr.io/cloud-builders/docker
+    id: Build the Docker Image
+    entrypoint: bash
+    secretEnv: [ENV_FILE]
+    args:
+      - '-c'
+      - |
+        cd /workspace
+        echo "Copying environment file..."
+        printf '%s' "$$ENV_FILE" > .env
+
+        if docker build --no-cache \
+          -t europe-west2-docker.pkg.dev/${PROJECT_ID}/neural-voice-repo/customer-platform-image:${_IMAGE_TAG} .; then
+          echo "Docker image built successfully with SHA256 tag."
+        else
+          echo "Failed to build Docker image with SHA256 tag."
+          exit 1
+        fi
+
+        if docker tag \
+          europe-west2-docker.pkg.dev/${PROJECT_ID}/neural-voice-repo/customer-platform-image:${_IMAGE_TAG} \
+          europe-west2-docker.pkg.dev/${PROJECT_ID}/neural-voice-repo/customer-platform-image:${BRANCH_NAME}; then
+          echo "Docker image tagged successfully with ${BRANCH_NAME}."
+        else
+          echo "Failed to tag Docker image with ${BRANCH_NAME}."
+          exit 1
+        fi
+
+  - name: gcr.io/cloud-builders/docker
+    id: Push to Artifact Registry
+    entrypoint: bash
+    args:
+      - '-c'
+      - |
+        gcloud auth configure-docker europe-west2-docker.pkg.dev
+        docker push \
+          europe-west2-docker.pkg.dev/${PROJECT_ID}/neural-voice-repo/customer-platform-image:${_IMAGE_TAG}
+        docker push \
+          europe-west2-docker.pkg.dev/${PROJECT_ID}/neural-voice-repo/customer-platform-image:${BRANCH_NAME}
+
+options:
+  logging: CLOUD_LOGGING_ONLY
+
+substitutions:
+  _IMAGE_TAG: '${SHORT_SHA}'
+
+availableSecrets:
+  secretManager:
+    - versionName: projects/${PROJECT_ID}/secrets/kubernetes-developement-customer-platform-nextjs-env/versions/latest
+      env: ENV_FILE

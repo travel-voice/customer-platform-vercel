@@ -1,0 +1,11 @@
+reviews:
+  collapse_walkthrough: true
+  high_level_summary_in_walkthrough: true
+  related_issues: false
+  related_prs: false
+  poem: false
+  profile: chill
+  request_changes_workflow: true
+
+  auto_review:
+    drafts: false
