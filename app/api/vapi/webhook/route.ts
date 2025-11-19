@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from 'next/server';
-import { createClient } from '@/lib/supabase/server';
+import { createAdminClient } from '@/lib/supabase/server';
 
 export async function POST(request: NextRequest) {
   try {
@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
         assistantUuid: call.assistantUuid,
       });
 
-      const supabase = await createClient();
+      const supabase = createAdminClient();
 
       // Find the agent based on vapi_assistant_id
       // Try multiple possible field names
