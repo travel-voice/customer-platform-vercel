@@ -109,7 +109,9 @@ export default function CustomerDashboard() {
 
   useEffect(() => {
     // Call both APIs in parallel
-    getCurrentPeriod(user?.organisation_uuid);
+    if (user?.organisation_uuid) {
+      getCurrentPeriod(user.organisation_uuid);
+    }
     getAgents();
   }, [user?.organisation_uuid, getCurrentPeriod, getAgents]);
 
