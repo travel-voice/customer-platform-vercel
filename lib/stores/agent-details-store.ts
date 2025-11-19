@@ -17,6 +17,7 @@ interface AgentDetailsStore {
   updateAgent: (organisationUuid: UUID, agentUuid: UUID, updates: ICharacterUpdateRequest, refreshAgentsList?: boolean) => Promise<ICharacterDetail>;
   updateDataExtraction: (organisationUuid: UUID, agentUuid: UUID, datapoints: IDataPoint[]) => Promise<void>;
   getDataExtraction: (organisationUuid: UUID, agentUuid: UUID) => Promise<string[]>;
+  deleteAgent: (organisationUuid: UUID, agentUuid: UUID) => Promise<void>;
   clearAgent: () => void;
   setError: (error: string | null) => void;
   clearError: () => void;
@@ -277,9 +278,43 @@ export const useAgentDetailsStore = create<AgentDetailsStore>((set, get) => ({
     }
   },
 
+  deleteAgent: async (organisationUuid: UUID, agentUuid: UUID) => {
+    set({ isUpdating: true, error: null });
+    try {
+      const response = await fetch(`/api/agents/${agentUuid}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        throw new Error('Failed to delete agent');
+      }
+      
+      // Refresh agents list
+      try {
+        const { useAgentsStore } = await import('./agents-store');
+        await useAgentsStore.getState().getAgents();
+      } catch (refreshError) {
+        console.warn('Failed to refresh agents list after deletion:', refreshError);
+      }
+
+      set({ 
+        agentDetail: null, 
+        agentStats: null, 
+        isUpdating: false, 
+        error: null 
+      });
+    } catch (error: any) {
+      set({ 
+        isUpdating: false, 
+        error: error.message || 'Failed to delete agent' 
+      });
+      throw error;
+    }
+  },
+
   clearAgent: () => set({ 
     agentDetail: null, 
-    agentStats: null,
+    agentStats: null, 
     error: null 
   }),
   

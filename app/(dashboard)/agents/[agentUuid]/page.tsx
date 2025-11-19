@@ -29,7 +29,8 @@ import {
   Volume2,
   Edit3,
   Upload,
-  Camera
+  Camera,
+  Trash2
 } from "lucide-react";
 import { RecordingsList } from "@/components/calls-list";
 import { VOICES_LIST } from "@/lib/types/agents";
@@ -51,6 +52,17 @@ import { Badge } from "@/components/ui/badge";
 import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardFooter,CardHeader, CardTitle } from "@/components/ui/card";
 import { Dialog, DialogContent, DialogDescription, DialogFooter, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
+import {
+  AlertDialog,
+  AlertDialogAction,
+  AlertDialogCancel,
+  AlertDialogContent,
+  AlertDialogDescription,
+  AlertDialogFooter,
+  AlertDialogHeader,
+  AlertDialogTitle,
+  AlertDialogTrigger,
+} from "@/components/ui/alert-dialog";
 import { Input } from "@/components/ui/input";
 import { Label } from "@/components/ui/label";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -113,6 +125,7 @@ export default function AgentDetailsPage() {
     updateAgent,
     updateDataExtraction,
     getDataExtraction,
+    deleteAgent,
     clearAgent 
   } = useAgentDetailsStore();
 
@@ -253,6 +266,18 @@ export default function AgentDetailsPage() {
       }
     };
   }, [imagePreviewUrl]);
+
+  // Handle agent deletion
+  const handleDeleteAgent = async () => {
+    if (!user?.organisation_uuid || !agentUuid) return;
+    
+    try {
+      await deleteAgent(user.organisation_uuid, agentUuid);
+      router.push('/home');
+    } catch (error) {
+      console.error("Failed to delete agent:", error);
+    }
+  };
 
   // Handle content form submission
   const onContentSubmit = async (data: ContentFormData) => {
@@ -1735,6 +1760,52 @@ export default function AgentDetailsPage() {
               </Card>
             </div>
           </form>
+          
+          {/* Danger Zone */}
+          <div className="pt-8 mt-8 border-t border-gray-200 dark:border-gray-800">
+            <div className="rounded-2xl border border-red-200 bg-red-50 dark:border-red-900/30 dark:bg-red-900/10 p-6">
+              <h3 className="text-lg font-semibold text-red-900 dark:text-red-400 flex items-center gap-2 mb-2">
+                <Trash2 className="h-5 w-5" />
+                Danger Zone
+              </h3>
+              <p className="text-sm text-red-700 dark:text-red-300 mb-4">
+                Deleting this agent will permanently remove it and all associated data, including call logs and recordings. This action cannot be undone.
+              </p>
+              <AlertDialog>
+                <AlertDialogTrigger asChild>
+                  <Button variant="destructive" className="bg-red-600 hover:bg-red-700 text-white border-none">
+                    Delete Agent
+                  </Button>
+                </AlertDialogTrigger>
+                <AlertDialogContent>
+                  <AlertDialogHeader>
+                    <AlertDialogTitle>Are you absolutely sure?</AlertDialogTitle>
+                    <AlertDialogDescription>
+                      This action cannot be undone. This will permanently delete the agent
+                      <span className="font-semibold text-foreground"> {agentDetail.name} </span>
+                      and all associated data including call history and recordings.
+                    </AlertDialogDescription>
+                  </AlertDialogHeader>
+                  <AlertDialogFooter>
+                    <AlertDialogCancel>Cancel</AlertDialogCancel>
+                    <AlertDialogAction
+                      onClick={handleDeleteAgent}
+                      className="bg-red-600 hover:bg-red-700 text-white border-none"
+                    >
+                      {isUpdating ? (
+                        <>
+                          <Loader2 className="mr-2 h-4 w-4 animate-spin" />
+                          Deleting...
+                        </>
+                      ) : (
+                        "Delete Agent"
+                      )}
+                    </AlertDialogAction>
+                  </AlertDialogFooter>
+                </AlertDialogContent>
+              </AlertDialog>
+            </div>
+          </div>
         </TabsContent>
       </Tabs>
 
