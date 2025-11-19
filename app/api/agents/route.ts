@@ -39,7 +39,64 @@ export async function GET(request: NextRequest) {
       return NextResponse.json({ error: error.message }, { status: 500 });
     }
 
-    return NextResponse.json({ agents });
+    // Get all calls for this organization to calculate stats
+    const { data: calls, error: callsError } = await supabase
+      .from('calls')
+      .select('agent_uuid, duration_seconds, sentiment, status')
+      .eq('organization_uuid', userData.organization_uuid);
+
+    if (callsError) {
+      console.error('Error fetching calls:', callsError);
+      // We don't fail the request if calls fail, just return 0 stats
+    }
+
+    // Calculate global stats
+    const callsList = calls || [];
+    const totalCalls = callsList.length;
+    const totalDuration = callsList.reduce((acc, call) => acc + (call.duration_seconds || 0), 0);
+    const avgDuration = totalCalls > 0 ? totalDuration / totalCalls : 0;
+
+    const sentimentCounts = callsList.reduce(
+      (acc, call) => {
+        const sentiment = call.sentiment || 'neutral';
+        if (sentiment === 'positive') acc.pos++;
+        else if (sentiment === 'negative') acc.neg++;
+        else acc.neu++;
+        return acc;
+      },
+      { pos: 0, neu: 0, neg: 0 }
+    );
+
+    const globalStats = {
+      total_successful_calls: totalCalls,
+      call_dur_avg: avgDuration,
+      pieChart: sentimentCounts
+    };
+
+    // Attach stats to each agent
+    const agentsWithStats = agents.map((agent) => {
+      const agentCalls = callsList.filter((call) => call.agent_uuid === agent.uuid);
+      const agentTotalCalls = agentCalls.length;
+      const agentSuccessCalls = agentCalls.filter((call) => call.status === 'completed').length;
+      
+      const agentPositiveCalls = agentCalls.filter((call) => call.sentiment === 'positive').length;
+      // Calculate percent positive based on total calls (or should it be calls with sentiment?)
+      // Assuming we want % of total calls that were positive
+      const percentPositive = agentTotalCalls > 0 
+        ? Math.round((agentPositiveCalls / agentTotalCalls) * 100) 
+        : 0;
+
+      return {
+        ...agent,
+        stats: {
+          totalCount: agentTotalCalls,
+          successCount: agentSuccessCalls,
+          percentPositive: percentPositive
+        }
+      };
+    });
+
+    return NextResponse.json({ agents: agentsWithStats, stats: globalStats });
   } catch (error: any) {
     console.error('Get agents error:', error);
     return NextResponse.json(

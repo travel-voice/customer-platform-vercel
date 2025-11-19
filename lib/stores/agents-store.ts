@@ -52,7 +52,7 @@ export const useAgentsStore = create<CharactersStore>((set, get) => ({
         throw new Error(errorData.error || 'Failed to fetch agents');
       }
 
-      const { agents } = await response.json();
+      const { agents, stats } = await response.json();
 
       // Transform agents data to match ICharacterPerformance interface
       const transformedAgents = (agents || []).map((agent: any) => ({
@@ -60,15 +60,15 @@ export const useAgentsStore = create<CharactersStore>((set, get) => ({
         assistant_avatar_url: agent.image || '/defaultcharacter.png',
         assistant_name: agent.name,
         assistant_purpose: agent.system_prompt || '',
-        percentPositive: 0, // Will be calculated from calls when available
+        percentPositive: agent.stats?.percentPositive || 0,
         emptyCount: 0,
-        successCount: 0,
-        totalCount: 0
+        successCount: agent.stats?.successCount || 0,
+        totalCount: agent.stats?.totalCount || 0
       }));
 
       set({
         agentPerformances: transformedAgents,
-        stats: null,
+        stats: stats || null,
         isLoading: false,
         error: null
       });
