@@ -111,11 +111,10 @@ export function ImageEditorModal({
             crop={crop}
             zoom={zoom}
             rotation={rotation}
-            aspect={1}
+            aspect={3 / 4}
             onCropChange={setCrop}
             onCropComplete={onCropComplete}
             onZoomChange={setZoom}
-            cropShape="round"
             showGrid={false}
           />
           
