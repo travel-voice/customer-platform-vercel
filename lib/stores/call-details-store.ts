@@ -71,11 +71,6 @@ export const useCallDetailsStore = create<CallDetailsStore>((set) => ({
         ? structuredDataRaw.messagesOpenAIFormatted
         : [];
 
-      const structuredFields =
-        structuredDataRaw.structuredFields ||
-        structuredDataRaw.analysis?.structuredData ||
-        {};
-
       // Transform API response to our internal format
       const callRecord: ICallRecord = {
         id: callUuid,
@@ -93,7 +88,7 @@ export const useCallDetailsStore = create<CallDetailsStore>((set) => ({
           timestamp: msg.time ? new Date(msg.time) : undefined,
         })),
         summary,
-        structuredData: structuredFields,
+        structuredData: undefined,
       };
       
       set({ 

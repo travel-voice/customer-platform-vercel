@@ -368,7 +368,7 @@ export default function CallDetailsPage() {
                         Call Summary
                       </h4>
                       <p className="text-gray-700 leading-relaxed">
-                        {callDetails.summary}
+                        {formatSummary(callDetails.summary)}
                       </p>
                     </div>
                   )}
@@ -594,3 +594,21 @@ const InfoItem = ({ icon: Icon, label, value }: { icon: React.ElementType, label
     </div>
   );
 }; 
+
+function formatSummary(summary?: string) {
+  if (!summary) return '';
+  try {
+    const parsed = JSON.parse(summary);
+    if (parsed && typeof parsed === 'object') {
+      return (
+        parsed.summary ||
+        parsed.analysis?.summary ||
+        parsed.transcriptText ||
+        summary
+      );
+    }
+  } catch {
+    // ignore parse errors
+  }
+  return summary;
+}

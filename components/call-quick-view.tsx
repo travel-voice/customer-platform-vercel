@@ -265,7 +265,7 @@ export function CallQuickView({ isOpen, onClose, recordId, agentUuid }: CallQuic
                           </CardHeader>
                           <CardContent>
                             <p className="text-sm text-gray-700 leading-relaxed">
-                              {callDetails.summary}
+                              {formatSummary(callDetails.summary)}
                             </p>
                           </CardContent>
                         </Card>
@@ -398,3 +398,21 @@ const InfoItem = ({ icon: Icon, label, value }: { icon: React.ElementType, label
     </div>
   );
 };
+
+function formatSummary(summary?: string) {
+  if (!summary) return '';
+  try {
+    const parsed = JSON.parse(summary);
+    if (parsed && typeof parsed === 'object') {
+      return (
+        parsed.summary ||
+        parsed.analysis?.summary ||
+        parsed.transcriptText ||
+        summary
+      );
+    }
+  } catch {
+    // ignore
+  }
+  return summary;
+}
