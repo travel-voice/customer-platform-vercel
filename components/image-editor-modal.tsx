@@ -14,7 +14,7 @@ import { Slider } from "@/components/ui/slider";
 import { Label } from "@/components/ui/label";
 import { Loader2, RotateCcw, Wand2, Check, ZoomIn } from "lucide-react";
 import { getCroppedImg } from "@/lib/image-utils";
-import removeBackground from "@imgly/background-removal";
+import { removeBackground } from "@imgly/background-removal";
 
 interface ImageEditorModalProps {
   open: boolean;
