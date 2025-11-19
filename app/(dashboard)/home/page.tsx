@@ -646,7 +646,7 @@ export default function CustomerDashboard() {
               <div className="inline-flex items-center justify-center h-14 w-14 rounded-2xl bg-gradient-to-r from-[#1AADF0] to-[#F52E60] shadow-md mb-5">
                 <Sparkles className="h-6 w-6 text-white" />
               </div>
-              <h2 className="text-3xl md:text-4xl font-extrabold tracking-tight text-gray-900">Welcome to Neural Voice</h2>
+              <h2 className="text-3xl md:text-4xl font-extrabold tracking-tight text-gray-900">Welcome to Travel Voice</h2>
               <p className="mt-3 text-gray-600 text-base md:text-lg">
                 Create your first voice AI agent to start handling calls and delighting your customers.
               </p>

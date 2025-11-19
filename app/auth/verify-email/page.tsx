@@ -71,7 +71,7 @@ export default function VerifyEmailPage() {
           <p className="text-sm text-gray-700 font-medium">What to do next:</p>
           <ol className="text-sm text-gray-600 space-y-1 list-decimal list-inside">
             <li>Check your email inbox</li>
-            <li>Look for an email from Neural Voice</li>
+            <li>Look for an email from Travel Voice</li>
             <li>Click the verification link</li>
             <li>You'll be redirected to sign in</li>
           </ol>

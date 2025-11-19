@@ -85,7 +85,7 @@ export default function SignInPage() {
             Welcome back
           </h2>
           <p className="text-gray-600">
-            Sign in to your Neural Voice account
+            Sign in to your Travel Voice account
           </p>
         </motion.div>
 

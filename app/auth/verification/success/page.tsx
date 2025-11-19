@@ -94,7 +94,7 @@ export default function VerificationSuccessPage() {
               Your email has been successfully verified.
             </p>
             <p className="text-gray-500">
-              You can now access all Neural Voice features.
+              You can now access all Travel Voice features.
             </p>
           </motion.div>
         </motion.div>

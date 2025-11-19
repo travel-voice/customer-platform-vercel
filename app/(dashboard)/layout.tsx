@@ -109,7 +109,7 @@ export default function DashboardLayout({
 
   // Update document title for all dashboard pages
   useEffect(() => {
-    const prefix = 'Neural Voice: ';
+    const prefix = 'Travel Voice: ';
     const getPageTitle = (path: string) => {
       if (!path) return 'Dashboard';
       // Normalize trailing slash
@@ -213,7 +213,7 @@ export default function DashboardLayout({
             <div className={`flex items-center space-x-3 ${isCollapsed ? 'justify-center' : ''}`}>
               <img 
                 src="/Sidebar Icon.svg" 
-                alt="Neural Voice Logo" 
+                alt="Travel Voice Logo" 
                 className={`flex-shrink-0 transition-all duration-300 w-10 h-10`}
               />
               <AnimatePresence>
@@ -225,7 +225,7 @@ export default function DashboardLayout({
                     transition={{ duration: 0.2 }}
                     className="text-xl font-bold text-[#1E1E1E] whitespace-nowrap"
                   >
-                    Neural Voice
+                    Travel Voice
                   </motion.h1>
                 )}
               </AnimatePresence>
@@ -447,8 +447,8 @@ export default function DashboardLayout({
               >
                 <div className="px-6 py-8 border-b border-gray-100">
                   <div className="flex items-center space-x-3">
-                    <img src="/Sidebar Icon.svg" alt="Neural Voice Logo" className="w-8 h-8" />
-                    <h1 className="text-xl font-bold text-[#1E1E1E]">Neural Voice</h1>
+                    <img src="/Sidebar Icon.svg" alt="Travel Voice Logo" className="w-8 h-8" />
+                    <h1 className="text-xl font-bold text-[#1E1E1E]">Travel Voice</h1>
                   </div>
                 </div>
                 <nav className="flex-1 px-4 py-6 space-y-2">

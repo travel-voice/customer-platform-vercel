@@ -3,7 +3,7 @@ import { Metadata } from "next";
 
 export const metadata: Metadata = {
   title: "Authentication",
-  description: "Access your Neural Voice account and manage your AI voice experiences.",
+  description: "Access your Travel Voice account and manage your AI voice experiences.",
 };
 
 export default function AuthLayout({
@@ -37,7 +37,7 @@ export default function AuthLayout({
               <svg
                 viewBox="0 0 582 93"
                 height="40"
-                aria-label="Neural Voice"
+                aria-label="Travel Voice"
                 className="drop-shadow-sm"
                 xmlns="http://www.w3.org/2000/svg"
               >

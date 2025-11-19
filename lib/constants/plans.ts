@@ -11,7 +11,7 @@ export const PLANS: IPlan[] = [
     period: "month",
     features: [
       {
-        label: "200 Neural Voice minutes",
+        label: "200 Travel Voice minutes",
         isEnabled: true
       },
       {
@@ -46,7 +46,7 @@ export const PLANS: IPlan[] = [
     isActive: true, // Mark as "Most Popular"
     features: [
       {
-        label: "1,000 Neural Voice minutes",
+        label: "1,000 Travel Voice minutes",
         isEnabled: true
       },
       {
@@ -80,7 +80,7 @@ export const PLANS: IPlan[] = [
     period: "month",
     features: [
       {
-        label: "5,000 Neural Voice minutes",
+        label: "5,000 Travel Voice minutes",
         isEnabled: true
       },
       {

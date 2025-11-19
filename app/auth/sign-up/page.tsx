@@ -112,7 +112,7 @@ export default function SignUpPage() {
           variants={fadeInVariants}
         >
           <h2 className="text-3xl font-bold tracking-tight text-gray-900 mb-2">
-            Join Neural Voice
+            Join Travel Voice
           </h2>
           <p className="text-gray-600">
             Create your account and transform your business communications

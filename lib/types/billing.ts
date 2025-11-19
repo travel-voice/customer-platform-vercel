@@ -2,7 +2,7 @@ import { UUID } from './auth';
 
 // Plan feature interface
 export interface IPlanFeature {
-  label: string;        // "200 Neural Voice minutes"
+  label: string;        // "200 Travel Voice minutes"
   isEnabled: boolean;   // true/false for this plan
 }
 

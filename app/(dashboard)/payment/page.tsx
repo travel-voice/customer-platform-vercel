@@ -296,7 +296,7 @@ export default function PaymentPage() {
                 Choose Your <span className="bg-gradient-to-r from-[#1AADF0] to-[#F52E60] bg-clip-text text-transparent">Perfect Plan</span>
               </h2>
               <p className="text-gray-600 text-xl leading-relaxed max-w-2xl mx-auto">
-                Unlock the power of Neural Voice with plans designed to scale with your business growth
+                Unlock the power of Travel Voice with plans designed to scale with your business growth
               </p>
             </motion.div>
 

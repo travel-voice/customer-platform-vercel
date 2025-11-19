@@ -158,7 +158,7 @@ export default function AccountSettingsPage() {
               Domain Registration
             </CardTitle>
             <CardDescription>
-              Add domains where your Neural Voice script will be used. Only registered domains can use your AI agents.
+              Add domains where your Travel Voice script will be used. Only registered domains can use your AI agents.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -240,7 +240,7 @@ export default function AccountSettingsPage() {
                   <Globe className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
                   <h3 className="font-medium mb-1">No domains registered</h3>
                   <p className="text-sm text-muted-foreground">
-                    Add your first domain to start using Neural Voice on your website
+                    Add your first domain to start using Travel Voice on your website
                   </p>
                 </div>
               )}
@@ -265,7 +265,7 @@ export default function AccountSettingsPage() {
               Embed Script
             </CardTitle>
             <CardDescription>
-              Copy this script and add it to your website to enable Neural Voice AI agents.
+              Copy this script and add it to your website to enable Travel Voice AI agents.
             </CardDescription>
           </CardHeader>
           <CardContent className="space-y-4">
@@ -363,7 +363,7 @@ export default function AccountSettingsPage() {
         <CardHeader>
           <CardTitle>Integration Examples</CardTitle>
           <CardDescription>
-            Common ways to integrate Neural Voice into your website
+            Common ways to integrate Travel Voice into your website
           </CardDescription>
         </CardHeader>
         <CardContent className="space-y-4">

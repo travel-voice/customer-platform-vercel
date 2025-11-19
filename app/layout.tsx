@@ -15,8 +15,8 @@ const dmSans = DM_Sans({
 
 export const metadata: Metadata = {
   title: {
-    default: "Neural Voice",
-    template: "Neural Voice: %s",
+    default: "Travel Voice",
+    template: "Travel Voice: %s",
   },
   description: "AI-powered voice assistant platform",
 };
