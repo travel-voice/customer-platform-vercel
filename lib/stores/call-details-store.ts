@@ -44,6 +44,38 @@ export const useCallDetailsStore = create<CallDetailsStore>((set) => ({
 
       if (error) throw new Error(error.message);
       
+      const structuredDataRaw =
+        typeof data.extracted_data === 'object' && data.extracted_data !== null
+          ? data.extracted_data
+          : {};
+
+      const summary =
+        structuredDataRaw.summary ||
+        structuredDataRaw.analysis?.summary ||
+        structuredDataRaw.transcriptText ||
+        '';
+
+      const audioUrl =
+        data.recording_url ||
+        structuredDataRaw.recordingUrl ||
+        structuredDataRaw.recording?.mono?.combinedUrl ||
+        structuredDataRaw.recording?.stereoUrl ||
+        structuredDataRaw.stereoRecordingUrl ||
+        '';
+
+      const messagesSource = Array.isArray(data.transcript)
+        ? data.transcript
+        : Array.isArray(structuredDataRaw.messages)
+        ? structuredDataRaw.messages
+        : Array.isArray(structuredDataRaw.messagesOpenAIFormatted)
+        ? structuredDataRaw.messagesOpenAIFormatted
+        : [];
+
+      const structuredFields =
+        structuredDataRaw.structuredFields ||
+        structuredDataRaw.analysis?.structuredData ||
+        {};
+
       // Transform API response to our internal format
       const callRecord: ICallRecord = {
         id: callUuid,
@@ -54,16 +86,14 @@ export const useCallDetailsStore = create<CallDetailsStore>((set) => ({
         characterId: data.agent_uuid,
         sentiment: (data.sentiment || 'neutral') as 'positive' | 'neutral' | 'negative',
         sentimentScore: 0.5, // Default neutral score, could be calculated from sentiment if needed
-        audioUrl: data.recording_url || '',
-        messages: Array.isArray(data.transcript) 
-          ? data.transcript.map((msg: any) => ({
-              role: msg.role === 'bot' ? 'assistant' as const : 'user' as const,
-              message: msg.message || msg.content || '',
-              timestamp: msg.time ? new Date(msg.time) : undefined,
-            }))
-          : [],
-        summary: data.extracted_data ? JSON.stringify(data.extracted_data) : '',
-        structuredData: typeof data.extracted_data === 'object' ? data.extracted_data : undefined,
+        audioUrl,
+        messages: messagesSource.map((msg: any) => ({
+          role: (msg.role === 'bot' || msg.role === 'assistant' ? 'assistant' : 'user') as 'assistant' | 'user',
+          message: msg.message || msg.content || '',
+          timestamp: msg.time ? new Date(msg.time) : undefined,
+        })),
+        summary,
+        structuredData: structuredFields,
       };
       
       set({ 

@@ -93,10 +93,10 @@ export const useRecordsStore = create<RecordsStore>((set, get) => ({
           id: call.agents?.uuid || '',
           name: call.agents?.name || 'Unknown Agent',
         },
-        sentiment: call.sentiment || 'neutral',
-        audio: call.recording_url || '',
+        sentiment: (call.sentiment || 'neutral') as 'positive' | 'neutral' | 'negative',
+        audio: extractRecordingUrl(call),
         messages: Array.isArray(call.transcript) ? call.transcript : [],
-        summary: call.extracted_data ? JSON.stringify(call.extracted_data) : '', // Using extracted data as summary for now
+        summary: extractSummary(call),
       }));
 
       set({
@@ -152,10 +152,10 @@ export const useRecordsStore = create<RecordsStore>((set, get) => ({
           id: call.agents?.uuid || '',
           name: call.agents?.name || 'Unknown Agent',
         },
-        sentiment: call.sentiment || 'neutral',
-        audio: call.recording_url || '',
+        sentiment: (call.sentiment || 'neutral') as 'positive' | 'neutral' | 'negative',
+        audio: extractRecordingUrl(call),
         messages: Array.isArray(call.transcript) ? call.transcript : [],
-        summary: call.extracted_data ? JSON.stringify(call.extracted_data) : '',
+        summary: extractSummary(call),
       }));
 
       set({
@@ -194,3 +194,31 @@ export const useRecordsStore = create<RecordsStore>((set, get) => ({
   setError: (error: string | null) => set({ error }),
   clearError: () => set({ error: null }),
 }));
+
+function parseStructuredData(call: any) {
+  return typeof call?.extracted_data === 'object' && call?.extracted_data !== null
+    ? call.extracted_data
+    : null;
+}
+
+function extractRecordingUrl(call: any): string {
+  const structured = parseStructuredData(call);
+  return (
+    call.recording_url ||
+    structured?.recordingUrl ||
+    structured?.recording?.mono?.combinedUrl ||
+    structured?.recording?.stereoUrl ||
+    structured?.stereoRecordingUrl ||
+    ''
+  );
+}
+
+function extractSummary(call: any): string {
+  const structured = parseStructuredData(call);
+  return (
+    structured?.summary ||
+    structured?.analysis?.summary ||
+    structured?.transcriptText ||
+    ''
+  );
+}
