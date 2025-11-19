@@ -53,6 +53,7 @@ const staggeredVariants = {
 function ResetPasswordForm() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const token = searchParams.get('token');
   const { resetPassword, error, clearError, isLoading, isPasswordChanged } = useAuthStore();
   const [showError, setShowError] = useState(false);
   const [showPassword, setShowPassword] = useState(false);

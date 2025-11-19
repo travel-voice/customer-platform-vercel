@@ -52,12 +52,8 @@ export const useAgentDetailsStore = create<AgentDetailsStore>((set, get) => ({
         uuid: agent.uuid,
         name: agent.name,
         avatar_url: agent.image || '/defaultcharacter.png',
-        purpose: agent.system_prompt || '',
         voice_id: agent.voice_id,
         first_message: agent.first_message,
-        organisation_uuid: agent.organization_uuid,
-        created_at: agent.created_at,
-        updated_at: agent.updated_at,
         // Add extraction schema from DB config
         extraction_schema: {
           selectedIds
@@ -98,7 +94,7 @@ export const useAgentDetailsStore = create<AgentDetailsStore>((set, get) => ({
         assistant_uuid: agentUuid,
         assistant_avatar_url: currentAgent?.avatar_url || '/defaultcharacter.png',
         assistant_name: currentAgent?.name || '',
-        assistant_purpose: currentAgent?.purpose || '',
+        assistant_purpose: currentAgent?.system_prompt || '',
         percentPositive: 0,
         emptyCount: 0,
         successCount: 0,
@@ -159,11 +155,9 @@ export const useAgentDetailsStore = create<AgentDetailsStore>((set, get) => ({
             ...currentDetail,
             name: agent.name,
             avatar_url: agent.image || currentDetail.avatar_url,
-            purpose: agent.system_prompt || currentDetail.purpose,
             voice_id: agent.voice_id,
             first_message: agent.first_message,
             system_prompt: agent.system_prompt || currentDetail.system_prompt,
-            updated_at: agent.updated_at,
             extraction_schema: agent.data_extraction_config 
                 ? { selectedIds: Object.keys(agent.data_extraction_config) }
                 : currentDetail.extraction_schema

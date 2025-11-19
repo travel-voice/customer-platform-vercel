@@ -57,10 +57,9 @@ export const useDomainsStore = create<DomainsStore>((set, get) => ({
       const domains: IDomain[] = (data || []).map((d: any) => ({
         uuid: d.uuid,
         domain: d.domain,
-        is_verified: d.verification_status === 'verified',
+        comments: '', // Not stored in new schema
         created_at: d.created_at,
-        updated_at: d.updated_at,
-        organisation_id: 1 // Legacy field
+        updated_at: d.updated_at
       }));
       
       set({ 

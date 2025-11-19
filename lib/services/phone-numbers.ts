@@ -14,7 +14,7 @@ export const getPhoneNumbers = async (organisationUuid: UUID): Promise<PhoneNumb
       uuid,
       phone_number,
       agent_uuid,
-      agents (
+      agents!phone_numbers_agent_uuid_fkey (
         name,
         uuid
       )
@@ -56,7 +56,7 @@ export const getPhoneNumberByUuid = async (organisationUuid: UUID, phoneNumberUu
       uuid,
       phone_number,
       agent_uuid,
-      agents (
+      agents!phone_numbers_agent_uuid_fkey (
         name,
         uuid
       )
@@ -69,10 +69,11 @@ export const getPhoneNumberByUuid = async (organisationUuid: UUID, phoneNumberUu
     throw new Error(error.message);
   }
 
+  const agents = data.agents as any;
   return {
     uuid: data.uuid,
     phone_number: data.phone_number,
-    assistant_name: data.agents?.name || null,
+    assistant_name: agents?.name || null,
     assistant_uuid: data.agent_uuid || null
   };
 };
