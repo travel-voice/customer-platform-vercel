@@ -127,7 +127,7 @@ export function AgentCreationModal({
     setPreviewUrl(url);
   };
 
-  const processImageToBase64 = (file: File): Promise<string> => {
+  const processImageToBlob = (file: File): Promise<Blob> => {
     return new Promise((resolve, reject) => {
       const canvas = document.createElement('canvas');
       const ctx = canvas.getContext('2d');
@@ -156,10 +156,14 @@ export function AgentCreationModal({
         // Draw and crop image
         ctx.drawImage(img, x, y, size, size, 0, 0, 500, 500);
         
-        // Convert to base64 and remove data URL prefix
-        const base64 = canvas.toDataURL('image/png');
-        const base64String = base64.split(',')[1]; // Remove "data:image/png;base64," prefix
-        resolve(base64String);
+        // Convert to blob
+        canvas.toBlob((blob) => {
+          if (blob) {
+            resolve(blob);
+          } else {
+            reject(new Error('Failed to create blob'));
+          }
+        }, 'image/png');
       };
       
       img.onerror = () => reject(new Error('Failed to load image'));
@@ -190,38 +194,41 @@ export function AgentCreationModal({
 
   const onSubmit = async (data: CreateAgentForm) => {
     try {
-      let imageData: string = "";
+      let imageUrl: string | undefined = undefined;
       
       if (data.image) {
-        imageData = await processImageToBase64(data.image);
-      } else {
-        // Use default character image when no image is provided
-        const defaultImagePath = '/defaultcharacter.png';
-
         try {
-          // Fetch the default image and convert to base64
-          const response = await fetch(defaultImagePath);
-          const blob = await response.blob();
-          const base64 = await new Promise<string>((resolve) => {
-            const reader = new FileReader();
-            reader.onload = () => {
-              const result = reader.result as string;
-              const base64String = result.split(',')[1]; // Remove data URL prefix
-              resolve(base64String);
-            };
-            reader.readAsDataURL(blob);
+          // Process image (crop/resize)
+          const processedBlob = await processImageToBlob(data.image);
+
+          // Create form data for upload
+          const formData = new FormData();
+          formData.append('file', processedBlob, 'avatar.png');
+
+          // Upload image
+          const uploadResponse = await fetch('/api/upload/image', {
+            method: 'POST',
+            body: formData,
           });
-          imageData = base64;
+
+          if (!uploadResponse.ok) {
+            const errorData = await uploadResponse.json();
+            throw new Error(errorData.error || 'Failed to upload image');
+          }
+
+          const uploadResult = await uploadResponse.json();
+          imageUrl = uploadResult.url;
         } catch (error) {
-          console.warn('Failed to load default image:', error);
-          // Continue without image if default loading fails
+          console.error('Image upload failed:', error);
+          // If upload fails, we'll continue without the image
+          // or we could throw an error to stop creation
         }
       }
 
       await onCreateAgent({
         name: data.name,
         elevenlabs_voice_id: data.voice_id,
-        image_data: imageData
+        image_data: imageUrl
       });
 
       // Reset form and close modal on success
