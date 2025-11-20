@@ -1,8 +1,28 @@
 import React, { useEffect, useState } from "react";
 
 // Configuration for the API URL
-// In development, you might want to change this to http://localhost:3000
-const BASE_URL = 'https://app.neural-voice.ai';
+// Default to the production URL, but try to auto-detect
+let BASE_URL = 'https://travel-voice-cp.vercel.app';
+
+// Dynamic Base URL Detection
+if (typeof window !== 'undefined') {
+  // 1. If running on localhost, use localhost
+  if (window.location.hostname === 'localhost' || window.location.hostname === '127.0.0.1') {
+    BASE_URL = window.location.origin;
+  } 
+  // 2. Try to detect based on the script tag source (if served from the platform)
+  else if (document.currentScript) {
+    try {
+      const scriptUrl = new URL(document.currentScript.src);
+      // If the script is named widget.js, assume the API is at the same origin
+      if (scriptUrl.pathname.includes('widget.js')) {
+        BASE_URL = scriptUrl.origin;
+      }
+    } catch (e) {
+      console.warn('Failed to detect script origin:', e);
+    }
+  }
+}
 
 export const fetchSettings = async () => {
   try {
