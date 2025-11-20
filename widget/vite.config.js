@@ -14,6 +14,10 @@ export default defineConfig({
     react(),
     cssInjectedByJsPlugin(),
   ],
+  css: {
+    // Disable auto-loading of postcss config to avoid conflicts with the root Next.js postcss config
+    postcss: {}, 
+  },
   build: {
     // Output relative to the widgetDir (root option)
     outDir: path.resolve(rootDir, 'public'),
