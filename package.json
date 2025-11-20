@@ -5,13 +5,16 @@
   "scripts": {
     "dev": "next dev --turbopack",
     "build": "npm run build:widget && next build",
-    "build:widget": "cd widget && npm install && npm run build",
+    "build:widget": "vite build -c widget/vite.config.js",
     "start": "next start",
     "lint": "next lint"
   },
   "dependencies": {
+    "@emotion/react": "^11.11.4",
+    "@emotion/styled": "^11.11.5",
     "@hookform/resolvers": "^5.1.1",
     "@imgly/background-removal": "^1.7.0",
+    "@mui/material": "^5.15.20",
     "@radix-ui/react-alert-dialog": "^1.1.14",
     "@radix-ui/react-avatar": "^1.1.10",
     "@radix-ui/react-dialog": "^1.1.14",
@@ -56,6 +59,7 @@
     "@types/node": "^20",
     "@types/react": "^19",
     "@types/react-dom": "^19",
+    "@vitejs/plugin-react": "^4.2.1",
     "eslint": "^9.34.0",
     "eslint-config-next": "15.4.2",
     "eslint-config-prettier": "^10.1.8",
@@ -64,6 +68,8 @@
     "tailwindcss": "^4",
     "tw-animate-css": "^1.3.5",
     "typescript": "^5.9.2",
-    "typescript-eslint": "^8.41.0"
+    "typescript-eslint": "^8.41.0",
+    "vite": "^5.1.4",
+    "vite-plugin-css-injected-by-js": "^3.4.0"
   }
 }
