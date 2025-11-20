@@ -5,6 +5,12 @@ import { updateSession } from '@/lib/supabase/middleware';
 export async function middleware(request: NextRequest) {
   const pathname = request.nextUrl.pathname;
 
+  // Skip middleware for static assets (images, fonts, etc.)
+  const isFileRequest = /\.[^/]+$/.test(pathname);
+  if (isFileRequest || pathname.startsWith('/_next')) {
+    return NextResponse.next();
+  }
+
   // Public routes that don't require authentication
   const publicRoutes = [
     '/auth/sign-in',
