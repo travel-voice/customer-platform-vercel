@@ -3,6 +3,7 @@ import "./globals.css";
 import type { Metadata } from "next";
 import { DM_Sans } from "next/font/google";
 import Script from "next/script";
+import { SpeedInsights } from "@vercel/speed-insights/next";
 
 import { SessionProvider } from "@/components/providers/session-provider";
 
@@ -33,6 +34,7 @@ export default function RootLayout({
         className={`${dmSans.variable} font-sans antialiased`}
       >
         <SessionProvider>{children}</SessionProvider>
+        <SpeedInsights />
         {hubspotUrl && (
           <Script
             id="hs-script-loader"
