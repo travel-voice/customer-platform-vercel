@@ -262,3 +262,8 @@ window.initWidget = (containerId) => {
 document.addEventListener('DOMContentLoaded', function () {
   initWidget('nv_widget');
 });
+
+// Fallback: If the script is loaded asynchronously after DOMContentLoaded
+if (document.readyState === 'complete' || document.readyState === 'interactive') {
+  initWidget('nv_widget');
+}
