@@ -5,7 +5,7 @@
   "scripts": {
     "dev": "next dev --turbopack",
     "build": "npm run build:widget && next build",
-    "build:widget": "vite build -c widget/vite.config.js",
+    "build:widget": "node scripts/build-widget.js",
     "start": "next start",
     "lint": "next lint"
   },

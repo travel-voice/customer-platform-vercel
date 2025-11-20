@@ -3,23 +3,22 @@ import react from '@vitejs/plugin-react';
 import cssInjectedByJsPlugin from 'vite-plugin-css-injected-by-js';
 import path from 'path';
 
-// Since we run vite from the root but point to this config, 
-// __dirname will be the directory containing this file (customer-platform/widget)
 const widgetDir = __dirname;
 const rootDir = path.resolve(widgetDir, '..');
 
 export default defineConfig({
-  root: widgetDir, // Set root to widget directory so it finds files correctly
+  root: widgetDir,
   plugins: [
     react(),
     cssInjectedByJsPlugin(),
   ],
   css: {
-    // Disable auto-loading of postcss config to avoid conflicts with the root Next.js postcss config
-    postcss: {}, 
+    // Explicitly define an empty plugin list to stop Vite/PostCSS from searching for a config file
+    postcss: {
+      plugins: []
+    },
   },
   build: {
-    // Output relative to the widgetDir (root option)
     outDir: path.resolve(rootDir, 'public'),
     emptyOutDir: false,
     lib: {
