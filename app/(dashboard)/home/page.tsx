@@ -61,7 +61,7 @@ const cardVariants = {
 
 export default function CustomerDashboard() {
   const router = useRouter();
-  const { user } = useAuthStore();
+  const { user, logout } = useAuthStore();
   const { 
     currentPeriod, 
     isLoadingPeriod, 
@@ -661,6 +661,15 @@ export default function CustomerDashboard() {
                 >
                   Are you ready to create your first voice AI agent?
                 </Button>
+                <button
+                  onClick={() => {
+                    logout();
+                    router.push('/auth/sign-in');
+                  }}
+                  className="mt-4 text-sm text-gray-500 hover:text-gray-700 underline transition-colors"
+                >
+                  Log out
+                </button>
               </div>
             </motion.div>
           </motion.div>
