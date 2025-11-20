@@ -146,7 +146,18 @@ export const useDomainsStore = create<DomainsStore>((set, get) => ({
   },
 
   generateEmbedScript: (): IEmbedScript => {
-    const scriptUrl = process.env.NEXT_PUBLIC_NV_SCRIPT_URL || 'https://app.neural-voice.ai/script.js';
+    let scriptUrl = 'https://app.neural-voice.ai/widget.js';
+    
+    // If running in browser, use current origin
+    if (typeof window !== 'undefined') {
+        scriptUrl = `${window.location.origin}/widget.js`;
+    }
+    
+    // Allow override via env var
+    if (process.env.NEXT_PUBLIC_NV_SCRIPT_URL) {
+        scriptUrl = process.env.NEXT_PUBLIC_NV_SCRIPT_URL;
+    }
+
     const content = `<script src="${scriptUrl}"></script>`;
     
     const embedScript = {
