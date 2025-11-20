@@ -17,13 +17,14 @@ interface CharactersStore {
   stats: ICharactersStats | null;
   isLoading: boolean;
   hasLoaded: boolean;
+  lastFetched: number;
   isCreating: boolean;
   canCreate: boolean;
   isCheckingPermission: boolean;
   error: string | null;
   
   // Actions
-  getAgents: () => Promise<void>;
+  getAgents: (options?: { force?: boolean }) => Promise<void>;
   checkCreationPermission: () => Promise<boolean>;
   createAgent: (data: CharacterCreateData) => Promise<void>;
   setError: (error: string | null) => void;
@@ -36,13 +37,23 @@ export const useAgentsStore = create<CharactersStore>((set, get) => ({
   stats: null,
   isLoading: false,
   hasLoaded: false,
+  lastFetched: 0,
   isCreating: false,
   canCreate: false,
   isCheckingPermission: false,
   error: null,
 
   // Actions
-  getAgents: async () => {
+  getAgents: async (options = {}) => {
+    const { force = false } = options;
+    const { lastFetched, isLoading, hasLoaded } = get();
+    const CACHE_DURATION = 60 * 1000; // 1 minute
+
+    // If we have data, it's fresh enough, and we aren't forcing a refresh -> Skip
+    if (!force && hasLoaded && !isLoading && (Date.now() - lastFetched < CACHE_DURATION)) {
+      return;
+    }
+
     set({ isLoading: true, error: null });
     try {
       const response = await fetch('/api/agents', {
@@ -73,6 +84,7 @@ export const useAgentsStore = create<CharactersStore>((set, get) => ({
         stats: stats || null,
         isLoading: false,
         hasLoaded: true,
+        lastFetched: Date.now(),
         error: null
       });
     } catch (error: any) {
@@ -113,7 +125,7 @@ export const useAgentsStore = create<CharactersStore>((set, get) => ({
       }
 
       // Refresh the agents list after successful creation
-      await get().getAgents();
+      await get().getAgents({ force: true });
 
       set({
         isCreating: false,
