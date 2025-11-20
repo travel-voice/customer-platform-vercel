@@ -84,6 +84,7 @@ export default function AgentsPage() {
   const { 
     agentPerformances, 
     isLoading, 
+    hasLoaded,
     isCreating,
     canCreate,
     isCheckingPermission,
@@ -100,7 +101,7 @@ export default function AgentsPage() {
 
   const pageSize = 8; // Increased for better layout
 
-    const loadAgents = useCallback(async () => {
+  const loadAgents = useCallback(async () => {
     try {
       await getAgents();
     } catch (error) {
@@ -124,10 +125,10 @@ export default function AgentsPage() {
 
   // Auto-open create modal instead of redirecting when zero agents
   useEffect(() => {
-    if (!isLoading && agentPerformances.length === 0 && currentPage === 1) {
+    if (hasLoaded && !isLoading && agentPerformances.length === 0 && currentPage === 1) {
       setShowCreateModal(true);
     }
-  }, [isLoading, agentPerformances.length, currentPage]);
+  }, [hasLoaded, isLoading, agentPerformances.length, currentPage]);
 
   // Listen for agent updates and refresh the list
   useEffect(() => {

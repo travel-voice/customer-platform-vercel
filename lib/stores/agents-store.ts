@@ -16,6 +16,7 @@ interface CharactersStore {
   agentPerformances: ICharacterPerformance[];
   stats: ICharactersStats | null;
   isLoading: boolean;
+  hasLoaded: boolean;
   isCreating: boolean;
   canCreate: boolean;
   isCheckingPermission: boolean;
@@ -34,6 +35,7 @@ export const useAgentsStore = create<CharactersStore>((set, get) => ({
   agentPerformances: [],
   stats: null,
   isLoading: false,
+  hasLoaded: false,
   isCreating: false,
   canCreate: false,
   isCheckingPermission: false,
@@ -70,11 +72,13 @@ export const useAgentsStore = create<CharactersStore>((set, get) => ({
         agentPerformances: transformedAgents,
         stats: stats || null,
         isLoading: false,
+        hasLoaded: true,
         error: null
       });
     } catch (error: any) {
       set({
         isLoading: false,
+        hasLoaded: true,
         error: error.message || 'Failed to fetch agents'
       });
       throw error;
