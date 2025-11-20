@@ -208,25 +208,20 @@ export default function DashboardLayout({
         >
           {/* Logo Section */}
           <div className={`py-8 border-b border-gray-100 ${isCollapsed ? 'px-2' : 'px-6'}`}>
-            <div className={`flex items-center space-x-3 ${isCollapsed ? 'justify-center' : ''}`}>
-              <img 
-                src="/Sidebar Icon.svg" 
-                alt="Travel Voice Logo" 
-                className={`flex-shrink-0 transition-all duration-300 w-10 h-10`}
-              />
-              <AnimatePresence>
-                {!isCollapsed && (
-                  <motion.h1 
-                    initial={{ opacity: 0, width: 0 }}
-                    animate={{ opacity: 1, width: "auto" }}
-                    exit={{ opacity: 0, width: 0 }}
-                    transition={{ duration: 0.2 }}
-                    className="text-xl font-bold text-[#1E1E1E] whitespace-nowrap"
-                  >
-                    Travel Voice
-                  </motion.h1>
-                )}
-              </AnimatePresence>
+            <div className={`flex items-center ${isCollapsed ? 'justify-center' : ''}`}>
+              {isCollapsed ? (
+                <img 
+                  src="/logo/tv-logo.jpg" 
+                  alt="Travel Voice Logo" 
+                  className="flex-shrink-0 transition-all duration-300 w-10 h-10 object-contain"
+                />
+              ) : (
+                <img 
+                  src="/logo/logo-travelvoice.png" 
+                  alt="Travel Voice Logo" 
+                  className="flex-shrink-0 transition-all duration-300 w-full max-w-[180px] h-auto"
+                />
+              )}
             </div>
           </div>
 
@@ -444,9 +439,8 @@ export default function DashboardLayout({
                 className="fixed left-0 top-0 h-full w-64 bg-white/80 backdrop-blur-xl border-r border-white/20 shadow-xl flex flex-col z-40 md:hidden"
               >
                 <div className="px-6 py-8 border-b border-gray-100">
-                  <div className="flex items-center space-x-3">
-                    <img src="/Sidebar Icon.svg" alt="Travel Voice Logo" className="w-8 h-8" />
-                    <h1 className="text-xl font-bold text-[#1E1E1E]">Travel Voice</h1>
+                  <div className="flex items-center">
+                    <img src="/logo/logo-travelvoice.png" alt="Travel Voice Logo" className="w-full max-w-[160px] h-auto" />
                   </div>
                 </div>
                 <nav className="flex-1 px-4 py-6 space-y-2">
