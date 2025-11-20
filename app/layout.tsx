@@ -4,6 +4,7 @@ import type { Metadata } from "next";
 import { DM_Sans } from "next/font/google";
 import Script from "next/script";
 import { SpeedInsights } from "@vercel/speed-insights/next";
+import { Analytics } from "@vercel/analytics/react";
 
 import { SessionProvider } from "@/components/providers/session-provider";
 
@@ -35,6 +36,7 @@ export default function RootLayout({
       >
         <SessionProvider>{children}</SessionProvider>
         <SpeedInsights />
+        <Analytics />
         {hubspotUrl && (
           <Script
             id="hs-script-loader"
