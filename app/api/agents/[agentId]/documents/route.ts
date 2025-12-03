@@ -1,9 +1,15 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { vapiClient } from '@/lib/vapi/client';
+import OpenAI from "openai";
+import { HIDDEN_SYSTEM_PROMPT_SUFFIX } from '@/lib/constants/prompts';
 
 // Define max file size (e.g., 10MB)
 const MAX_FILE_SIZE = 10 * 1024 * 1024;
+
+const openai = new OpenAI({
+  apiKey: process.env.OPENAI_API_KEY,
+});
 
 /**
  * GET /api/agents/[agentId]/documents
@@ -190,7 +196,7 @@ export async function POST(
     }
 
     // 4. Update Vapi Tool Configuration
-    await updateVapiToolConfiguration(supabase, agentId, agent.vapi_assistant_id);
+    await syncKnowledgeBase(supabase, agentId, agent.vapi_assistant_id);
 
     return NextResponse.json({ file: dbFile });
 
@@ -275,7 +281,7 @@ export async function DELETE(
         if (deleteError) return NextResponse.json({ error: deleteError.message }, { status: 500 });
 
         // 4. Update Vapi Tool Configuration
-        await updateVapiToolConfiguration(supabase, agentId, agent.vapi_assistant_id);
+        await syncKnowledgeBase(supabase, agentId, agent.vapi_assistant_id);
 
         return NextResponse.json({ success: true });
 
@@ -286,18 +292,26 @@ export async function DELETE(
 }
 
 // Helper to sync the agent's knowledge base tool in Vapi
-async function updateVapiToolConfiguration(supabase: any, agentId: string, vapiAssistantId: string | null) {
+async function syncKnowledgeBase(supabase: any, agentId: string, vapiAssistantId: string | null) {
     if (!vapiAssistantId) return;
 
     // 1. Get all current files for this agent
     const { data: files } = await supabase
         .from('agent_files')
-        .select('vapi_file_id')
+        .select('file_name, file_type, vapi_file_id')
         .eq('agent_id', agentId);
     
     const fileIds = files?.map((f: any) => f.vapi_file_id).filter(Boolean) || [];
+    const fileNames = files?.map((f: any) => f.file_name).join(', ') || '';
 
-    // 2. Get current assistant configuration
+    // 2. Get current agent config from DB (Source of Truth for Prompt)
+    const { data: agent } = await supabase
+        .from('agents')
+        .select('system_prompt')
+        .eq('uuid', agentId)
+        .single();
+        
+    // 2b. Get current assistant configuration from Vapi (for Tool IDs and other settings)
     let assistant;
     try {
         assistant = await vapiClient.getAssistant(vapiAssistantId);
@@ -306,122 +320,144 @@ async function updateVapiToolConfiguration(supabase: any, agentId: string, vapiA
         return;
     }
 
-    // 3. Find existing knowledge base tool
-    // We look for a tool of type 'query' that seems to be our KB tool.
-    // Or we check the tools attached to the assistant.
     const currentToolIds = assistant.model?.toolIds || [];
-    
-    let kbToolId: string | null = null;
-    let kbTool: any = null;
-
-    // We need to scan the tools to find which one is ours.
-    // This implies fetching all tools or we need to store the toolId in our DB.
-    // Storing toolId in DB would be better, but we didn't add a column for it.
-    // Let's try to find it by name convention "Knowledge Base - [Agent Name]" or similar?
-    // Or better: List all tools and find one used by this assistant that is a query tool.
-    
-    // Strategy: 
-    // If we have a toolId stored (we don't yet), use it.
-    // Else, create a new tool if we have files.
-    // If we have no files, remove the tool if it exists (hard to track without ID).
-    
-    // Alternative: Create a tool named `kb-tool-${agentId}`.
-    // If we assume unique names per org? Vapi tools are per org.
-    // Let's search for a tool with function name `knowledge_base_${agentId_short}`.
-    
-    // Note: Function names in Vapi tools must be valid identifiers.
     const sanitizedAgentId = agentId.replace(/-/g, '_');
-    const toolFunctionName = `knowledge_base_search`; // Generic name? 
-    // Actually, if multiple agents share tools, it's fine. But here we want specific KB.
-    // Let's use `kb_${sanitizedAgentId}`.
-    
     const toolName = `kb_${sanitizedAgentId}`;
 
-    // List all tools to find if we already created one
-    // Ideally we should cache this tool ID in the agent record.
-    // For now, let's list tools (might be slow if many tools).
+    // 3. Find existing tool
     const tools = await vapiClient.listTools();
     const existingTool = tools.find(t => 
         t.type === 'query' && 
         t.function?.name === toolName
     );
 
+    // --- NO FILES ---
     if (fileIds.length === 0) {
-        // If no files, and we found a tool, delete it and remove from assistant
         if (existingTool) {
             // Detach from assistant
-            const newToolIds = currentToolIds.filter(id => id !== existingTool.id);
+            const newToolIds = currentToolIds.filter((id: string) => id !== existingTool.id);
+
+            // Remove KB instruction from prompt (use DB prompt as base)
+            const currentSystemPrompt = agent?.system_prompt || '';
+            let cleanSystemPrompt = currentSystemPrompt;
             
-            // Must preserve entire model configuration when updating toolIds
-            const modelUpdate: any = {
+            // Remove the specific KB block we add
+            cleanSystemPrompt = currentSystemPrompt.replace(/\n\n\[Knowledge Base Access\]\n[\s\S]*?(?=(\n\n|$))/, '').trim();
+                
+            // Also update DB
+            await supabase.from('agents').update({ system_prompt: cleanSystemPrompt }).eq('uuid', agentId);
+
+            // Update Vapi (User Prompt + Hidden Suffix)
+            await vapiClient.updateAssistant(vapiAssistantId, {
+                modelProvider: assistant.model?.provider,
                 model: assistant.model?.model || 'gpt-4o-mini',
                 modelTemperature: assistant.model?.temperature ?? 0.7,
                 maxTokens: assistant.model?.maxTokens ?? 250,
-                toolIds: newToolIds
-            };
-
-            // Preserve system prompt if it exists
-            if (assistant.model?.messages && assistant.model.messages.length > 0) {
-                modelUpdate.systemPrompt = assistant.model.messages.find((m: any) => m.role === 'system')?.content;
-            }
-
-            await vapiClient.updateAssistant(vapiAssistantId, modelUpdate);
+                toolIds: newToolIds,
+                systemPrompt: `${cleanSystemPrompt}\n${HIDDEN_SYSTEM_PROMPT_SUFFIX}`
+            });
+            
+            // Ideally delete the tool itself too, but strictly optional if we detached it.
         }
         return;
     }
 
-    // We have files.
-    if (existingTool) {
-        // Update existing tool
-        await vapiClient.updateTool(existingTool.id, {
-            knowledgeBases: [
+    // --- HAVE FILES ---
+    
+    // Generate Description & Instruction via OpenAI
+    let kbDescription = 'Contains information about products, services, policies, and other relevant documentation.';
+    let kbInstruction = `You have access to a knowledge base tool named '${toolName}'. Use it to answer user questions based on the provided documents.`;
+
+    try {
+        const completion = await openai.chat.completions.create({
+            model: "gpt-4o-mini",
+            messages: [
                 {
-                    provider: 'google',
-                    name: 'default-kb',
-                    description: 'Contains information about products, services, policies, and other relevant documentation.',
-                    fileIds: fileIds
-                }
-            ]
+                    role: "system",
+                    content: `You are an expert in configuring AI Knowledge Bases. 
+                    Generate a concise description for a Knowledge Base tool and a system prompt instruction for an AI assistant.
+                    
+                    The Knowledge Base contains these files: ${fileNames}
+                    
+                    Output JSON format:
+                    {
+                        "description": "A concise description (under 300 chars) of what this knowledge base contains based on the filenames.",
+                        "instruction": "A clear instruction telling the assistant when and how to use the '${toolName}' tool. Be specific about the topics inferred from filenames."
+                    }`
+                },
+            ],
+            response_format: { type: "json_object" },
+        });
+
+        const content = completion.choices[0].message?.content;
+        if (content) {
+            const parsed = JSON.parse(content);
+            if (parsed.description) kbDescription = parsed.description;
+            if (parsed.instruction) kbInstruction = parsed.instruction;
+        }
+    } catch (err) {
+        console.error('OpenAI generation failed, using defaults:', err);
+    }
+
+    let kbToolId: string;
+
+    // Update or Create Tool
+    if (existingTool) {
+        await vapiClient.updateTool(existingTool.id, {
+            knowledgeBases: [{
+                provider: 'google',
+                name: 'default-kb',
+                description: kbDescription,
+                fileIds: fileIds
+            }],
+            function: {
+                name: toolName,
+                description: kbDescription
+            }
         });
         kbToolId = existingTool.id;
     } else {
-        // Create new tool
         const newTool = await vapiClient.createTool({
             type: 'query',
             function: {
                 name: toolName,
-                description: 'Search the knowledge base for answers to user questions.'
+                description: kbDescription
             },
-            knowledgeBases: [
-                {
-                    provider: 'google',
-                    name: 'default-kb',
-                    description: 'Contains information about products, services, policies, and other relevant documentation.',
-                    fileIds: fileIds
-                }
-            ]
+            knowledgeBases: [{
+                provider: 'google',
+                name: 'default-kb',
+                description: kbDescription,
+                fileIds: fileIds
+            }]
         });
         kbToolId = newTool.id;
     }
 
-    // 4. Attach tool to assistant if not already attached
-    if (kbToolId && !currentToolIds.includes(kbToolId)) {
-        const newToolIds = [...currentToolIds, kbToolId];
-        
-        // Must preserve entire model configuration when updating toolIds
-        const modelUpdate: any = {
-            model: assistant.model?.model || 'gpt-4o-mini',
-            modelTemperature: assistant.model?.temperature ?? 0.7,
-            maxTokens: assistant.model?.maxTokens ?? 250,
-            toolIds: newToolIds
-        };
+    // Update Assistant System Prompt & Tool Attachment
+    const currentSystemPrompt = agent?.system_prompt || '';
+    
+    // Construct new prompt with KB instruction
+    // Remove old block if exists, then append new
+    let newSystemPrompt = currentSystemPrompt.replace(/\n\n\[Knowledge Base Access\]\n[\s\S]*?(?=(\n\n|$))/, '').trim();
+    newSystemPrompt += `\n\n[Knowledge Base Access]\n${kbInstruction}`;
 
-        // Preserve system prompt if it exists
-        if (assistant.model?.messages && assistant.model.messages.length > 0) {
-            modelUpdate.systemPrompt = assistant.model.messages.find((m: any) => m.role === 'system')?.content;
-        }
+    // Save to DB (Visible Prompt)
+    await supabase.from('agents').update({ system_prompt: newSystemPrompt }).eq('uuid', agentId);
 
-        await vapiClient.updateAssistant(vapiAssistantId, modelUpdate);
-    }
+    // Attach tool if missing
+    const newToolIds = currentToolIds.includes(kbToolId) ? currentToolIds : [...currentToolIds, kbToolId];
+
+    // Send to Vapi (Visible Prompt + Hidden Suffix)
+    console.log('Syncing KB for agent:', agentId);
+    console.log('New Tool IDs:', newToolIds);
+    console.log('Model Provider:', assistant.model?.provider);
+
+    await vapiClient.updateAssistant(vapiAssistantId, {
+        modelProvider: assistant.model?.provider,
+        model: assistant.model?.model || 'gpt-4o-mini',
+        modelTemperature: assistant.model?.temperature ?? 0.7,
+        maxTokens: assistant.model?.maxTokens ?? 250,
+        toolIds: newToolIds,
+        systemPrompt: `${newSystemPrompt}\n${HIDDEN_SYSTEM_PROMPT_SUFFIX}`
+    });
 }
-

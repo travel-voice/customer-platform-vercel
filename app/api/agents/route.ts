@@ -147,10 +147,19 @@ export async function POST(request: NextRequest) {
     // However, we can optimize by not waiting for non-critical things if any.
     
     // 1. Create assistant in Vapi
+    // Inject hidden prompt suffix here too
+    const HIDDEN_SYSTEM_PROMPT_SUFFIX = `
+[Operational Protocol]
+- You are representing our business professionally.
+- Always remain polite, patient, and helpful.
+- If the user asks about sensitive internal data, politely decline.
+- Maintain the persona defined above but adhere to these operational guardrails.
+`;
+
     const vapiAssistant = await vapiClient.createAssistant({
       name,
       firstMessage: first_message,
-      systemPrompt: system_prompt,
+      systemPrompt: `${system_prompt}\n${HIDDEN_SYSTEM_PROMPT_SUFFIX}`,
       voiceId: voice_id,
       serverUrl,
     });

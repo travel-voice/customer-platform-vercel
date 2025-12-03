@@ -74,6 +74,7 @@ interface UpdateAssistantParams {
     timeout?: number; // machineDetectionTimeout
   };
   transcriptionLanguage?: string;
+  modelProvider?: string;
   modelTemperature?: number;
   maxTokens?: number;
   toolIds?: string[];
@@ -251,10 +252,6 @@ class VapiClient {
         provider: 'twilio', // Default to Twilio for voicemail detection
         enabled: params.voicemailDetection.enabled,
       };
-      // machineDetectionMessage is not supported by Vapi API currently
-      // if (params.voicemailDetection.msg) {
-      //   payload.voicemailDetection.machineDetectionMessage = params.voicemailDetection.msg;
-      // }
       if (params.voicemailDetection.timeout) {
         payload.voicemailDetection.machineDetectionTimeout = params.voicemailDetection.timeout;
       }
@@ -268,13 +265,10 @@ class VapiClient {
     }
 
     // Model configuration
-    if (params.systemPrompt || params.model || params.modelTemperature || params.maxTokens || params.toolIds) {
-      // We need to be careful not to overwrite existing model config if we don't have it.
-      // But Vapi API requires full model object usually.
-      // For this implementation, we reconstruct what we know.
+    if (params.systemPrompt || params.model || params.modelTemperature || params.maxTokens || params.toolIds || params.modelProvider) {
       
       payload.model = {
-        provider: 'openai',
+        provider: params.modelProvider || 'openai',
         model: params.model || 'gpt-4o-mini',
         temperature: params.modelTemperature ?? 0.7,
         maxTokens: params.maxTokens ?? 250,

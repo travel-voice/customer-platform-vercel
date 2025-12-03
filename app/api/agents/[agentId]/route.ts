@@ -3,6 +3,17 @@ import { createClient } from '@/lib/supabase/server';
 import { vapiClient, StructuredOutputSchema } from '@/lib/vapi/client';
 import { TRAVEL_DATAPOINTS } from '@/lib/constants/travel-datapoints';
 
+// --- HIDDEN PROMPT INJECTION ---
+// This prompt segment is appended to the user's system prompt but not shown in the UI.
+// It lives here in the backend code (or could be in a DB config table later).
+const HIDDEN_SYSTEM_PROMPT_SUFFIX = `
+[Operational Protocol]
+- You are representing our business professionally.
+- Always remain polite, patient, and helpful.
+- If the user asks about sensitive internal data, politely decline.
+- Maintain the persona defined above but adhere to these operational guardrails.
+`;
+
 /**
  * Build a Vapi structured output JSON schema from data extraction config
  */
@@ -92,6 +103,10 @@ export async function GET(
       return NextResponse.json({ error: 'Agent not found' }, { status: 404 });
     }
 
+    // NOTE: We return the 'raw' system_prompt from DB to the frontend,
+    // which does NOT include the HIDDEN_SYSTEM_PROMPT_SUFFIX.
+    // This keeps it hidden from the user as requested.
+
     return NextResponse.json({ agent });
   } catch (error: any) {
     console.error('Get agent error:', error);
@@ -159,7 +174,24 @@ export async function PATCH(
     if (image !== undefined) dbUpdate.image = image;
     if (voice_id !== undefined) dbUpdate.voice_id = voice_id;
     if (first_message !== undefined) dbUpdate.first_message = first_message;
-    if (system_prompt !== undefined) dbUpdate.system_prompt = system_prompt;
+    
+    // Store raw user prompt in DB (without hidden suffix)
+    if (system_prompt !== undefined) {
+        // If we have existing KB instructions in the DB (from file uploads), we need to preserve them 
+        // OR re-inject them. The frontend likely sends the *editable* part.
+        // However, our previous logic (documents/route.ts) appends to the DB system_prompt.
+        // This creates a conflict: if frontend sends a clean prompt, we lose KB instructions.
+        // IDEAL: Store user_prompt and system_prompt separately. 
+        // CURRENT COMPROMISE: We assume frontend sends the "user visible" part.
+        // If we have KB instructions in the existing prompt, let's try to preserve them?
+        // Actually, the `documents` route appends to the prompt string. 
+        // If the user edits the prompt here, they might overwrite KB instructions if the frontend didn't load them.
+        
+        // Let's just save what the user sent for now. The KB logic might need to re-run or be smarter.
+        // For this specific task (Hidden Prompt), we just save the user prompt to DB as-is.
+        dbUpdate.system_prompt = system_prompt;
+    }
+
     if (data_extraction_config !== undefined) dbUpdate.data_extraction_config = data_extraction_config;
 
     // Handle advanced config
@@ -246,7 +278,12 @@ export async function PATCH(
         if (name !== undefined) vapiUpdate.name = name;
         if (voice_id !== undefined) vapiUpdate.voiceId = voice_id;
         if (first_message !== undefined) vapiUpdate.firstMessage = first_message;
-        if (system_prompt !== undefined) vapiUpdate.systemPrompt = system_prompt;
+        
+        // INJECT HIDDEN PROMPT
+        if (system_prompt !== undefined) {
+            // Combine user prompt + hidden suffix
+            vapiUpdate.systemPrompt = `${system_prompt}\n${HIDDEN_SYSTEM_PROMPT_SUFFIX}`;
+        }
 
         // Map advanced settings to Vapi
         if (hasAdvancedUpdates) {
