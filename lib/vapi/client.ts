@@ -25,6 +25,7 @@ interface VapiAssistant {
   serverUrl?: string;
   maxDurationSeconds?: number;
   backgroundSound?: string;
+  backgroundDenoisingEnabled?: boolean;
   voicemailDetection?: {
     provider: 'twilio' | 'vonage' | 'vapi';
     voicemailMessage?: string;
@@ -48,6 +49,7 @@ interface CreateAssistantParams {
   voiceId?: string;
   model?: string;
   serverUrl?: string;
+  backgroundDenoisingEnabled?: boolean;
 }
 
 interface UpdateAssistantParams {
@@ -64,6 +66,7 @@ interface UpdateAssistantParams {
   firstMessageMode?: 'assistant-speaks-first' | 'assistant-waits-for-user';
   maxDurationSeconds?: number;
   backgroundSound?: string;
+  backgroundDenoisingEnabled?: boolean;
   voicemailDetection?: {
     enabled: boolean;
     msg?: string; // machineDetectionMessage
@@ -155,6 +158,7 @@ class VapiClient {
         voiceId: params.voiceId,
         model: 'eleven_turbo_v2_5',
       } : undefined,
+      backgroundDenoisingEnabled: params.backgroundDenoisingEnabled ?? true,
     };
 
     if (params.serverUrl) {
@@ -185,6 +189,7 @@ class VapiClient {
     if (params.firstMessageMode) payload.firstMessageMode = params.firstMessageMode;
     if (params.maxDurationSeconds) payload.maxDurationSeconds = params.maxDurationSeconds;
     if (params.backgroundSound) payload.backgroundSound = params.backgroundSound === 'off' ? undefined : params.backgroundSound;
+    if (params.backgroundDenoisingEnabled !== undefined) payload.backgroundDenoisingEnabled = params.backgroundDenoisingEnabled;
 
     if (params.voicemailDetection) {
       payload.voicemailDetection = {
