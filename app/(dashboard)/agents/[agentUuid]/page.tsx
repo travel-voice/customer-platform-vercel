@@ -136,7 +136,8 @@ export default function AgentDetailsPage() {
     getAgentFiles,
     uploadAgentFile,
     deleteAgentFile,
-    isUploading
+    isUploading,
+    uploadStage
   } = useAgentDetailsStore();
 
   const [activeTab, setActiveTab] = useState("content");
@@ -1580,9 +1581,20 @@ export default function AgentDetailsPage() {
                     <p className="text-sm text-gray-500">PDF, DOCX, TXT (max 10MB)</p>
                   </div>
                   {isUploading && (
-                    <div className="flex items-center gap-2 text-blue-600">
-                      <Loader2 className="h-4 w-4 animate-spin" />
-                      <span>Uploading...</span>
+                    <div className="flex flex-col items-center gap-3 mt-2">
+                      <div className="flex items-center gap-2 text-blue-600">
+                        <Loader2 className="h-4 w-4 animate-spin" />
+                        <span className="font-medium">
+                          {uploadStage === 'uploading' && 'Uploading file...'}
+                          {uploadStage === 'processing' && 'Processing document...'}
+                          {uploadStage === 'training' && 'Training AI...'}
+                        </span>
+                      </div>
+                      <div className="flex items-center gap-2">
+                        <div className={`h-2 w-2 rounded-full transition-colors ${uploadStage === 'uploading' ? 'bg-blue-600' : 'bg-gray-300'}`} />
+                        <div className={`h-2 w-2 rounded-full transition-colors ${uploadStage === 'processing' ? 'bg-blue-600' : 'bg-gray-300'}`} />
+                        <div className={`h-2 w-2 rounded-full transition-colors ${uploadStage === 'training' ? 'bg-blue-600' : 'bg-gray-300'}`} />
+                      </div>
                     </div>
                   )}
                 </div>

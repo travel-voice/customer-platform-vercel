@@ -3,6 +3,8 @@ import { create } from 'zustand';
 import { UUID } from '@/lib/types/auth';
 import { ICharacterDetail, ICharacterStats, ICharacterUpdateRequest, IDataPoint, IKnowledgeBaseFile } from '@/lib/types/agents';
 
+type UploadStage = 'idle' | 'uploading' | 'processing' | 'training';
+
 interface AgentDetailsStore {
   // State
   agentDetail: ICharacterDetail | null;
@@ -10,6 +12,7 @@ interface AgentDetailsStore {
   isLoading: boolean;
   isUpdating: boolean;
   isUploading: boolean;
+  uploadStage: UploadStage;
   error: string | null;
   
   // Actions
@@ -36,6 +39,7 @@ export const useAgentDetailsStore = create<AgentDetailsStore>((set, get) => ({
   isLoading: false,
   isUpdating: false,
   isUploading: false,
+  uploadStage: 'idle' as UploadStage,
   error: null,
 
   // Actions
@@ -354,7 +358,25 @@ export const useAgentDetailsStore = create<AgentDetailsStore>((set, get) => ({
   },
 
   uploadAgentFile: async (agentUuid: UUID, file: File) => {
-    set({ isUploading: true, error: null });
+    set({ isUploading: true, uploadStage: 'uploading', error: null });
+    
+    // Progress through stages while waiting for API response
+    const stageTimers: NodeJS.Timeout[] = [];
+    
+    // After 1.5s, move to processing stage
+    stageTimers.push(setTimeout(() => {
+      if (get().isUploading) {
+        set({ uploadStage: 'processing' });
+      }
+    }, 1500));
+    
+    // After 4s, move to training stage
+    stageTimers.push(setTimeout(() => {
+      if (get().isUploading) {
+        set({ uploadStage: 'training' });
+      }
+    }, 4000));
+    
     try {
       const formData = new FormData();
       formData.append('file', file);
@@ -363,6 +385,9 @@ export const useAgentDetailsStore = create<AgentDetailsStore>((set, get) => ({
         method: 'POST',
         body: formData,
       });
+
+      // Clear stage timers
+      stageTimers.forEach(timer => clearTimeout(timer));
 
       if (!response.ok) {
         const errorData = await response.json();
@@ -379,12 +404,18 @@ export const useAgentDetailsStore = create<AgentDetailsStore>((set, get) => ({
             ...currentDetail,
             knowledge_base: [newFile, ...(currentDetail.knowledge_base || [])]
           },
-          isUploading: false
+          isUploading: false,
+          uploadStage: 'idle'
         });
+      } else {
+        set({ isUploading: false, uploadStage: 'idle' });
       }
     } catch (error: any) {
+      // Clear stage timers on error
+      stageTimers.forEach(timer => clearTimeout(timer));
       set({
         isUploading: false,
+        uploadStage: 'idle',
         error: error.message || 'Failed to upload file'
       });
       throw error;
