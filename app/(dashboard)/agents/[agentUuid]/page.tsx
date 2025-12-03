@@ -31,7 +31,8 @@ import {
   Upload,
   Camera,
   Trash2,
-  X
+  X,
+  Link
 } from "lucide-react";
 import { RecordingsList } from "@/components/calls-list";
 import { VOICES_LIST } from "@/lib/types/agents";
@@ -971,6 +972,13 @@ export default function AgentDetailsPage() {
                 <Sparkles className="h-4 w-4 mr-2" />
                 Advanced
               </TabsTrigger>
+              <TabsTrigger 
+                value="integrations" 
+                className="flex-1 justify-center rounded-lg text-sm font-medium px-3 py-2 transition-colors border border-transparent hover:bg-[#1AADF0]/10 data-[state=active]:bg-[#1AADF0] data-[state=active]:text-white data-[state=active]:shadow-sm data-[state=active]:border-[#1AADF0]"
+              >
+                <Link className="h-4 w-4 mr-2" />
+                Integrations
+              </TabsTrigger>
             </TabsList>
           </div>
 
@@ -1791,57 +1799,7 @@ export default function AgentDetailsPage() {
                 </div>
 
                 {/* Email Notifications */}
-                <div className="space-y-6">
-                  <h3 className="text-lg font-semibold tracking-tight pb-2 border-b dark:text-white dark:border-gray-700">Email Notifications</h3>
-                  <div className="space-y-4">
-                    <div className="space-y-2">
-                      <Label>Recipient Emails</Label>
-                      <p className="text-sm text-muted-foreground">Receive an email summary and transcript after every call.</p>
-                      
-                      <div className="flex gap-2">
-                        <Input 
-                          placeholder="Enter email address" 
-                          value={newEmail}
-                          onChange={(e) => setNewEmail(e.target.value)}
-                          onKeyDown={(e) => {
-                            if (e.key === 'Enter') {
-                              e.preventDefault();
-                              handleAddEmail(e);
-                            }
-                          }}
-                        />
-                        <Button 
-                          type="button" 
-                          variant="outline"
-                          onClick={handleAddEmail}
-                          disabled={!newEmail.trim()}
-                        >
-                          Add
-                        </Button>
-                      </div>
-
-                      <div className="flex flex-wrap gap-2 mt-3">
-                        {advancedSettingsForm.watch("notificationEmails")?.map((email) => (
-                          <Badge key={email} variant="secondary" className="pl-2 pr-1 py-1 flex items-center gap-1">
-                            {email}
-                            <Button
-                              type="button"
-                              variant="ghost"
-                              size="sm"
-                              className="h-4 w-4 p-0 hover:bg-red-100 hover:text-red-600 rounded-full"
-                              onClick={() => handleRemoveEmail(email)}
-                            >
-                              <X className="h-3 w-3" />
-                            </Button>
-                          </Badge>
-                        ))}
-                        {(!advancedSettingsForm.watch("notificationEmails")?.length) && (
-                          <p className="text-sm text-gray-500 italic">No emails configured</p>
-                        )}
-                      </div>
-                    </div>
-                  </div>
-                </div>
+                {/* Moved to Integrations tab */}
               </CardContent>
               <CardFooter className="flex justify-end pt-6 border-t dark:border-gray-700">
                 <Button
@@ -1908,6 +1866,117 @@ export default function AgentDetailsPage() {
               </AlertDialog>
             </div>
           </div>
+        </TabsContent>
+
+        <TabsContent value="integrations" className="space-y-6">
+          <form onSubmit={advancedSettingsForm.handleSubmit(onAdvancedSubmit)}>
+            <Card className="border-0 shadow-lg rounded-2xl">
+              <CardHeader className="pb-6">
+                <div className="flex items-center gap-3">
+                  <div className="p-3 rounded-xl bg-gradient-to-br from-orange-100 to-red-100 dark:from-orange-900/20 dark:to-red-900/20">
+                    <Link className="h-6 w-6 text-orange-600 dark:text-orange-400" />
+                  </div>
+                  <div>
+                    <CardTitle className="text-xl">Integrations</CardTitle>
+                    <CardDescription className="text-base">Connect your agent with other tools and services</CardDescription>
+                  </div>
+                </div>
+              </CardHeader>
+              <CardContent className="space-y-8">
+                {/* Email Notifications Card */}
+                <div className="rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900/50 overflow-hidden transition-all hover:shadow-md">
+                  <div className="p-6 flex flex-col md:flex-row gap-6">
+                    <div className="flex-shrink-0">
+                      <div className="h-12 w-12 rounded-lg bg-blue-100 dark:bg-blue-900/30 flex items-center justify-center text-blue-600 dark:text-blue-400">
+                        <svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 24 24" fill="none" stroke="currentColor" strokeWidth="2" strokeLinecap="round" strokeLinejoin="round" className="h-6 w-6"><rect width="20" height="16" x="2" y="4" rx="2"/><path d="m22 7-8.97 5.7a1.94 1.94 0 0 1-2.06 0L2 7"/></svg>
+                      </div>
+                    </div>
+                    <div className="flex-1 space-y-4">
+                      <div>
+                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Email Notifications</h3>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">Receive a detailed summary, transcript, and recording link via email immediately after every call.</p>
+                      </div>
+                      
+                      <div className="space-y-3">
+                        <div className="flex gap-2">
+                          <Input 
+                            placeholder="name@example.com" 
+                            value={newEmail}
+                            onChange={(e) => setNewEmail(e.target.value)}
+                            onKeyDown={(e) => {
+                              if (e.key === 'Enter') {
+                                e.preventDefault();
+                                handleAddEmail(e);
+                              }
+                            }}
+                            className="max-w-md"
+                          />
+                          <Button 
+                            type="button" 
+                            variant="secondary"
+                            onClick={handleAddEmail}
+                            disabled={!newEmail.trim()}
+                          >
+                            Add Email
+                          </Button>
+                        </div>
+
+                        <div className="flex flex-wrap gap-2">
+                          {advancedSettingsForm.watch("notificationEmails")?.map((email) => (
+                            <Badge key={email} variant="outline" className="pl-3 pr-1 py-1.5 flex items-center gap-2 text-sm bg-gray-50 dark:bg-gray-800/50">
+                              {email}
+                              <Button
+                                type="button"
+                                variant="ghost"
+                                size="sm"
+                                className="h-5 w-5 p-0 hover:bg-red-100 hover:text-red-600 rounded-full"
+                                onClick={() => handleRemoveEmail(email)}
+                              >
+                                <X className="h-3 w-3" />
+                              </Button>
+                            </Badge>
+                          ))}
+                          {(!advancedSettingsForm.watch("notificationEmails")?.length) && (
+                            <p className="text-sm text-gray-400 italic pt-1">No email recipients added yet.</p>
+                          )}
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="bg-gray-50 dark:bg-gray-800/50 px-6 py-3 border-t border-gray-200 dark:border-gray-800 flex justify-between items-center">
+                    <div className="text-xs text-gray-500 flex items-center gap-1">
+                      <span className="inline-block h-2 w-2 rounded-full bg-green-500"></span>
+                      Active
+                    </div>
+                    {/* We use the main form submission, but user might expect "Save" here too. 
+                        Actually, since this is inside the form, we can add a save button specific to this tab if we want, 
+                        or just rely on the main save button at the bottom. 
+                        Let's add a specific save button for clarity since tabs separate content.
+                    */}
+                  </div>
+                </div>
+              </CardContent>
+              <CardFooter className="flex justify-end pt-6 border-t dark:border-gray-700">
+                <Button 
+                  type="submit"
+                  disabled={isUpdating || !advancedSettingsForm.formState.isDirty}
+                  className="bg-blue-600 hover:bg-blue-700 dark:bg-blue-500 dark:hover:bg-blue-600 text-white"
+                >
+                  {isUpdating ? (
+                    <>
+                      <Loader2 className="h-4 w-4 mr-2 animate-spin" />
+                      Saving...
+                    </>
+                  ) : (
+                    <>
+                      <Save className="h-4 w-4 mr-2" />
+                      Save Integrations
+                    </>
+                  )}
+                </Button>
+              </CardFooter>
+            </Card>
+          </form>
         </TabsContent>
       </Tabs>
 
