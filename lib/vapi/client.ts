@@ -127,6 +127,7 @@ interface VapiTool {
   knowledgeBases?: Array<{
     provider: string;
     name: string;
+    model?: string;
     description?: string;
     fileIds: string[];
   }>;
@@ -142,6 +143,7 @@ interface CreateToolParams {
   knowledgeBases?: Array<{
     provider: string;
     name: string;
+    model?: string;
     description?: string;
     fileIds: string[];
   }>;

@@ -407,6 +407,7 @@ async function syncKnowledgeBase(supabase: any, agentId: string, vapiAssistantId
             knowledgeBases: [{
                 provider: 'google',
                 name: 'default-kb',
+                model: 'gemini-2.0-flash',
                 description: kbDescription,
                 fileIds: fileIds
             }],
@@ -426,6 +427,7 @@ async function syncKnowledgeBase(supabase: any, agentId: string, vapiAssistantId
             knowledgeBases: [{
                 provider: 'google',
                 name: 'default-kb',
+                model: 'gemini-2.0-flash',
                 description: kbDescription,
                 fileIds: fileIds
             }]
