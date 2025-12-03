@@ -229,7 +229,7 @@ export default function AccountSettingsPage() {
                 <div className="flex gap-2 flex-col sm:flex-row">
                   <Input
                     id="domain"
-                    placeholder="app.neural-voice.ai"
+                    placeholder="app.travelvoice.co.uk"
                     {...form.register("domain")}
                     disabled={isAdding}
                   />
@@ -246,7 +246,7 @@ export default function AccountSettingsPage() {
                   <p className="text-sm text-red-600">{form.formState.errors.domain.message}</p>
                 )}
                 <p className="text-xs text-muted-foreground">
-                  Enter domain without protocol (e.g., app.neural-voice.ai, not https://app.neural-voice.ai)
+                  Enter domain without protocol (e.g., app.travelvoice.co.uk, not https://app.travelvoice.co.uk)
                 </p>
               </div>
             </form>
@@ -376,7 +376,7 @@ export default function AccountSettingsPage() {
                 <span>
                   For a complete walkthrough, check out our{" "}
                   <a 
-                    href="https://www.neural-voice.ai/blog/how-to-integrate-neural-voice-agent-into-your-website-complete-guide" 
+                    href="https://www.travelvoice.co.uk/blog/how-to-integrate-voice-agent-into-your-website-complete-guide" 
                     target="_blank" 
                     rel="noopener noreferrer" 
                     className="font-semibold text-blue-600 hover:underline"

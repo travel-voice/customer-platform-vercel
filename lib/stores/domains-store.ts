@@ -146,7 +146,7 @@ export const useDomainsStore = create<DomainsStore>((set, get) => ({
   },
 
   generateEmbedScript: (): IEmbedScript => {
-    let scriptUrl = 'https://app.neural-voice.ai/widget.js';
+    let scriptUrl = 'https://app.travelvoice.co.uk/widget.js';
     
     // If running in browser, use current origin
     if (typeof window !== 'undefined') {
@@ -223,7 +223,7 @@ export const useDomainsStore = create<DomainsStore>((set, get) => ({
     if (!domainRegex.test(trimmedDomain)) {
       return { 
         isValid: false, 
-        error: 'Please enter a valid domain name (e.g., app.neural-voice.ai)' 
+        error: 'Please enter a valid domain name (e.g., app.travelvoice.co.uk)' 
       };
     }
 

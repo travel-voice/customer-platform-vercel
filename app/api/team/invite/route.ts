@@ -108,7 +108,7 @@ export async function POST(request: NextRequest) {
 
     try {
       await resend.emails.send({
-        from: 'Travel Voice <noreply@neural-voice.ai>',
+        from: 'Travel Voice <noreply@travelvoice.co.uk>',
         to: email.toLowerCase(),
         subject: `You've been invited to join ${orgName} on Travel Voice`,
         html: formatInvitationEmailHtml({

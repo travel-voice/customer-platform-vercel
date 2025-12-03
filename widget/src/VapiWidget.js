@@ -25,7 +25,7 @@ const VapiWidget = ({
 
 
   useEffect(() => {
-    console.log('Neural Voice Client Initialising');
+    console.log('Travel Voice Client Initialising');
     console.log(vapiClient);
 
     if (!publicKey) {
@@ -36,7 +36,7 @@ const VapiWidget = ({
     const vapi = new Vapi(publicKey);
     setVapiClient(vapi);
 
-    console.log('Neural Voice Client Initialised');
+    console.log('Travel Voice Client Initialised');
   }, [publicKey]);
 
   useEffect(() => {
@@ -46,7 +46,7 @@ const VapiWidget = ({
 
     console.log(shouldStartPersona, didStartPersona)
     if (vapiClient && shouldStartPersona && !didStartPersona) {
-      console.log('Initializing Neural Voice client');
+      console.log('Initializing Travel Voice client');
 
       setLoadingAnimation(true);
 

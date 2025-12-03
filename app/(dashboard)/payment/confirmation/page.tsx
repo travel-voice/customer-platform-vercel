@@ -184,8 +184,8 @@ export default function PaymentConfirmationPage() {
           {/* Support Note */}
           <div className="text-xs text-center text-muted-foreground">
             Need help? Contact our support team at{" "}
-            <a href="mailto:support@neuralvoice.ai" className="text-blue-600 hover:underline">
-              support@neuralvoice.ai
+            <a href="mailto:support@travelvoice.co.uk" className="text-blue-600 hover:underline">
+              support@travelvoice.co.uk
             </a>
           </div>
         </CardContent>

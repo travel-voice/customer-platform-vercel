@@ -147,7 +147,7 @@ export async function POST(
     const orgName = organization?.name || 'the team';
 
     await resend.emails.send({
-      from: 'Travel Voice <noreply@neural-voice.ai>',
+      from: 'Travel Voice <noreply@travelvoice.co.uk>',
       to: invitation.email,
       subject: `Reminder: You've been invited to join ${orgName} on Travel Voice`,
       html: formatResendEmailHtml({

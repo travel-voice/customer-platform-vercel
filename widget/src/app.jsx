@@ -43,14 +43,14 @@ const App = () => {
         }
       }
 
-      console.log('Neural Voice Initialised');
+      console.log('Travel Voice Initialised');
       setSettingsLoaded(true);
     });
   };
 
   // Effect hook to fetch initial settings from the API upon component mount
   useEffect(() => {
-    window.getNeuralVoicePopupSettings = loadSettings;
+    window.getTravelVoicePopupSettings = loadSettings;
     loadSettings();
   }, []);
 
@@ -244,7 +244,7 @@ const App = () => {
 };
 
 window.initWidget = (containerId) => {
-  console.log('Initialising Neural Voice');
+  console.log('Initialising Travel Voice');
 
   if (!document.getElementById(containerId)) {
     const div = document.createElement('div');

@@ -23,7 +23,7 @@ export default defineConfig({
     emptyOutDir: false,
     lib: {
       entry: path.resolve(widgetDir, 'src/app.jsx'),
-      name: 'NeuralVoiceWidget',
+      name: 'TravelVoiceWidget',
       fileName: () => 'widget.js',
       formats: ['iife'],
     },
