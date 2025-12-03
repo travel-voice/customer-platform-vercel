@@ -19,6 +19,19 @@ export interface IExtractionSchema {
   selectedIds: string[]; // array of IDataPoint.id
 }
 
+// Knowledge Base File
+export interface IKnowledgeBaseFile {
+  id: string;
+  file_name: string;
+  file_size: number;
+  file_type: string;
+  vapi_file_id?: string;
+  created_at: string;
+  updated_at: string;
+  storage_path: string;
+  download_url?: string; // Signed URL for viewing/downloading
+}
+
 // Character detail from billing API
 export interface ICharacterDetail {
   activation_id: string;
@@ -52,6 +65,9 @@ export interface ICharacterDetail {
   beepMaxAwaitSeconds?: number;
   backgroundSound?: string;
   notificationEmails?: string[];
+  
+  // Knowledge Base
+  knowledge_base?: IKnowledgeBaseFile[];
 }
 
 // Character stats from transcripts API
@@ -148,4 +164,4 @@ export const VOICES_LIST: IVoice[] = [
   { id: 'FA6HhUjVbervLw2rNl8M', name: 'Maria', gender: 'Female', age: 'Middle Age', accent: 'British' },
   { id: 'u8mYrrobJUV7LGGK3Ks5', name: 'Richard', gender: 'Male', age: 'Middle Age', accent: 'British' },
   { id: 'PdsF16KlCW9N0Ds8ASD0', name: 'Steven', gender: 'Male', age: 'Middle Age', accent: 'British' },
-]; 
+];

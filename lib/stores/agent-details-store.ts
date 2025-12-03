@@ -1,7 +1,7 @@
 import { create } from 'zustand';
 
 import { UUID } from '@/lib/types/auth';
-import { ICharacterDetail, ICharacterStats, ICharacterUpdateRequest, IDataPoint } from '@/lib/types/agents';
+import { ICharacterDetail, ICharacterStats, ICharacterUpdateRequest, IDataPoint, IKnowledgeBaseFile } from '@/lib/types/agents';
 
 interface AgentDetailsStore {
   // State
@@ -9,6 +9,7 @@ interface AgentDetailsStore {
   agentStats: ICharacterStats | null;
   isLoading: boolean;
   isUpdating: boolean;
+  isUploading: boolean;
   error: string | null;
   
   // Actions
@@ -21,6 +22,11 @@ interface AgentDetailsStore {
   clearAgent: () => void;
   setError: (error: string | null) => void;
   clearError: () => void;
+
+  // Knowledge Base Actions
+  getAgentFiles: (agentUuid: UUID) => Promise<void>;
+  uploadAgentFile: (agentUuid: UUID, file: File) => Promise<void>;
+  deleteAgentFile: (agentUuid: UUID, fileId: string) => Promise<void>;
 }
 
 export const useAgentDetailsStore = create<AgentDetailsStore>((set, get) => ({
@@ -29,6 +35,7 @@ export const useAgentDetailsStore = create<AgentDetailsStore>((set, get) => ({
   agentStats: null,
   isLoading: false,
   isUpdating: false,
+  isUploading: false,
   error: null,
 
   // Actions
@@ -324,4 +331,95 @@ export const useAgentDetailsStore = create<AgentDetailsStore>((set, get) => ({
   
   setError: (error: string | null) => set({ error }),
   clearError: () => set({ error: null }),
+
+  // Knowledge Base Actions
+  getAgentFiles: async (agentUuid: UUID) => {
+    try {
+      const response = await fetch(`/api/agents/${agentUuid}/documents`);
+      if (!response.ok) throw new Error('Failed to fetch documents');
+      const { files } = await response.json();
+      
+      const currentDetail = get().agentDetail;
+      if (currentDetail) {
+        set({
+          agentDetail: {
+            ...currentDetail,
+            knowledge_base: files
+          }
+        });
+      }
+    } catch (error: any) {
+      console.error('Failed to fetch agent files:', error);
+    }
+  },
+
+  uploadAgentFile: async (agentUuid: UUID, file: File) => {
+    set({ isUploading: true, error: null });
+    try {
+      const formData = new FormData();
+      formData.append('file', file);
+
+      const response = await fetch(`/api/agents/${agentUuid}/documents`, {
+        method: 'POST',
+        body: formData,
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to upload file');
+      }
+
+      const { file: newFile } = await response.json();
+
+      // Update local state
+      const currentDetail = get().agentDetail;
+      if (currentDetail) {
+        set({
+          agentDetail: {
+            ...currentDetail,
+            knowledge_base: [newFile, ...(currentDetail.knowledge_base || [])]
+          },
+          isUploading: false
+        });
+      }
+    } catch (error: any) {
+      set({
+        isUploading: false,
+        error: error.message || 'Failed to upload file'
+      });
+      throw error;
+    }
+  },
+
+  deleteAgentFile: async (agentUuid: UUID, fileId: string) => {
+    set({ isUpdating: true, error: null });
+    try {
+      const response = await fetch(`/api/agents/${agentUuid}/documents?fileId=${fileId}`, {
+        method: 'DELETE',
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        throw new Error(errorData.error || 'Failed to delete file');
+      }
+
+      // Update local state
+      const currentDetail = get().agentDetail;
+      if (currentDetail) {
+        set({
+          agentDetail: {
+            ...currentDetail,
+            knowledge_base: (currentDetail.knowledge_base || []).filter(f => f.id !== fileId)
+          },
+          isUpdating: false
+        });
+      }
+    } catch (error: any) {
+      set({
+        isUpdating: false,
+        error: error.message || 'Failed to delete file'
+      });
+      throw error;
+    }
+  }
 }));

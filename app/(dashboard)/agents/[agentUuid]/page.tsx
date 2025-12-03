@@ -32,7 +32,10 @@ import {
   Camera,
   Trash2,
   X,
-  Link
+  Link,
+  FileText,
+  Download,
+  Eye
 } from "lucide-react";
 import { RecordingsList } from "@/components/calls-list";
 import { VOICES_LIST } from "@/lib/types/agents";
@@ -129,7 +132,11 @@ export default function AgentDetailsPage() {
     updateDataExtraction,
     getDataExtraction,
     deleteAgent,
-    clearAgent 
+    clearAgent,
+    getAgentFiles,
+    uploadAgentFile,
+    deleteAgentFile,
+    isUploading
   } = useAgentDetailsStore();
 
   const [activeTab, setActiveTab] = useState("content");
@@ -153,6 +160,78 @@ export default function AgentDetailsPage() {
   });
   
   const [isCallModalOpen, setIsCallModalOpen] = useState(false);
+
+  // Knowledge Base state
+  const [isDragging, setIsDragging] = useState(false);
+  const fileInputRefKB = useRef<HTMLInputElement>(null);
+
+  // Knowledge Base Handlers
+  const handleFileUpload = async (event: React.ChangeEvent<HTMLInputElement> | React.DragEvent<HTMLDivElement>) => {
+    let files: FileList | null = null;
+    
+    if ('dataTransfer' in event) {
+      files = event.dataTransfer.files;
+    } else {
+      files = event.target.files;
+    }
+
+    if (!files || files.length === 0 || !user?.organisation_uuid || !agentUuid) return;
+
+    // Handle only the first file for now
+    const file = files[0];
+    
+    // Validation
+    if (file.size > 10 * 1024 * 1024) {
+      alert("File size must be under 10MB");
+      return;
+    }
+
+    const allowedTypes = [
+      'text/plain', 
+      'application/pdf', 
+      'application/msword', 
+      'application/vnd.openxmlformats-officedocument.wordprocessingml.document' // .docx
+    ];
+    
+    if (!allowedTypes.includes(file.type)) {
+      alert("Only PDF, DOCX, DOC, and TXT files are allowed.");
+      return;
+    }
+
+    try {
+      await uploadAgentFile(agentUuid, file);
+      // Success - reload files handled by store
+    } catch (error) {
+      console.error("Upload failed:", error);
+      alert("Failed to upload file.");
+    }
+  };
+
+  const handleDragOver = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsDragging(true);
+  };
+
+  const handleDragLeave = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsDragging(false);
+  };
+
+  const handleDrop = (e: React.DragEvent<HTMLDivElement>) => {
+    e.preventDefault();
+    setIsDragging(false);
+    handleFileUpload(e);
+  };
+
+  const handleFileDelete = async (fileId: string) => {
+    if (!confirm("Are you sure you want to delete this file?")) return;
+    try {
+      await deleteAgentFile(agentUuid, fileId);
+    } catch (error) {
+      console.error("Delete failed:", error);
+      alert("Failed to delete file.");
+    }
+  };
 
   // Data tab state
   const [dataSearch, setDataSearch] = useState("");
@@ -280,6 +359,13 @@ export default function AgentDetailsPage() {
       loadDataExtraction();
     }
   }, [activeTab, user?.organisation_uuid, agentUuid, getDataExtraction]);
+
+  // Load files when knowledge base tab is active
+  useEffect(() => {
+    if (activeTab === 'knowledge-base' && agentUuid) {
+      getAgentFiles(agentUuid);
+    }
+  }, [activeTab, agentUuid, getAgentFiles]);
 
   // Cleanup image preview URL on component unmount
   useEffect(() => {
@@ -959,6 +1045,13 @@ export default function AgentDetailsPage() {
                 Calls
               </TabsTrigger>
               <TabsTrigger 
+                value="knowledge-base" 
+                className="flex-1 justify-center rounded-lg text-sm font-medium px-3 py-2 transition-colors border border-transparent hover:bg-[#1AADF0]/10 data-[state=active]:bg-[#1AADF0] data-[state=active]:text-white data-[state=active]:shadow-sm data-[state=active]:border-[#1AADF0]"
+              >
+                <FileText className="h-4 w-4 mr-2" />
+                Knowledge Base
+              </TabsTrigger>
+              <TabsTrigger 
                 value="data" 
                 className="flex-1 justify-center rounded-lg text-sm font-medium px-3 py-2 transition-colors border border-transparent hover:bg-[#1AADF0]/10 data-[state=active]:bg-[#1AADF0] data-[state=active]:text-white data-[state=active]:shadow-sm data-[state=active]:border-[#1AADF0]"
               >
@@ -1442,6 +1535,108 @@ export default function AgentDetailsPage() {
             title="Recent Calls"
             description="All calls handled by this assistant"
           />
+        </TabsContent>
+        
+        {/* Knowledge Base Tab */}
+        <TabsContent value="knowledge-base" className="space-y-6">
+          <Card className="border-0 shadow-lg rounded-2xl">
+            <CardHeader className="pb-4">
+              <div className="flex items-center gap-3">
+                <div className="p-3 rounded-xl bg-gradient-to-br from-amber-100 to-orange-100 dark:from-amber-900/20 dark:to-orange-900/20">
+                  <FileText className="h-6 w-6 text-amber-700 dark:text-amber-400" />
+                </div>
+                <div>
+                  <CardTitle className="text-xl">Knowledge Base</CardTitle>
+                  <CardDescription className="text-base">Upload documents to give your agent specific knowledge.</CardDescription>
+                </div>
+              </div>
+            </CardHeader>
+            <CardContent className="space-y-6">
+              {/* Upload Area */}
+              <div 
+                className={`border-2 border-dashed rounded-xl p-8 text-center transition-all cursor-pointer
+                  ${isDragging 
+                    ? 'border-blue-500 bg-blue-50 dark:bg-blue-900/20' 
+                    : 'border-gray-300 dark:border-gray-700 hover:border-gray-400 hover:bg-gray-50 dark:hover:bg-gray-800/50'
+                  }`}
+                onDragOver={handleDragOver}
+                onDragLeave={handleDragLeave}
+                onDrop={handleDrop}
+                onClick={() => fileInputRefKB.current?.click()}
+              >
+                <input
+                  ref={fileInputRefKB}
+                  type="file"
+                  className="hidden"
+                  accept=".pdf,.txt,.doc,.docx"
+                  onChange={handleFileUpload}
+                />
+                <div className="flex flex-col items-center gap-3">
+                  <div className="p-4 rounded-full bg-gray-100 dark:bg-gray-800">
+                    <Upload className="h-8 w-8 text-gray-500" />
+                  </div>
+                  <div className="space-y-1">
+                    <p className="text-lg font-medium">Click to upload or drag and drop</p>
+                    <p className="text-sm text-gray-500">PDF, DOCX, TXT (max 10MB)</p>
+                  </div>
+                  {isUploading && (
+                    <div className="flex items-center gap-2 text-blue-600">
+                      <Loader2 className="h-4 w-4 animate-spin" />
+                      <span>Uploading...</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+
+              {/* Files List */}
+              <div className="space-y-4">
+                <h3 className="text-lg font-semibold">Uploaded Documents</h3>
+                {!agentDetail?.knowledge_base || agentDetail.knowledge_base.length === 0 ? (
+                  <div className="text-center py-8 text-gray-500 border rounded-xl bg-gray-50 dark:bg-gray-900/20 border-dashed">
+                    No documents uploaded yet.
+                  </div>
+                ) : (
+                  <div className="grid gap-3">
+                    {agentDetail.knowledge_base.map((file: any) => (
+                      <div key={file.id} className="flex items-center justify-between p-4 rounded-xl border border-gray-200 dark:border-gray-700 bg-white dark:bg-gray-800/50 hover:shadow-sm transition-all">
+                        <div className="flex items-center gap-3 overflow-hidden flex-1">
+                          <div className="p-2 rounded-lg bg-amber-100 dark:bg-amber-900/30">
+                            <FileText className="h-5 w-5 text-amber-600 dark:text-amber-400" />
+                          </div>
+                          <div className="min-w-0 flex-1">
+                            <p className="font-medium truncate">{file.file_name}</p>
+                            <p className="text-xs text-gray-500">{(file.file_size / 1024 / 1024).toFixed(2)} MB • {new Date(file.created_at).toLocaleDateString()}</p>
+                          </div>
+                        </div>
+                        <div className="flex items-center gap-2">
+                          {file.download_url && (
+                            <Button
+                              variant="outline"
+                              size="sm"
+                              className="text-blue-600 hover:text-blue-700 hover:bg-blue-50 dark:hover:bg-blue-900/20"
+                              onClick={() => window.open(file.download_url, '_blank')}
+                            >
+                              <Download className="h-4 w-4 mr-1" />
+                              View
+                            </Button>
+                          )}
+                          <Button
+                            variant="ghost"
+                            size="sm"
+                            className="text-red-500 hover:text-red-700 hover:bg-red-50 dark:hover:bg-red-900/20"
+                            onClick={() => handleFileDelete(file.id)}
+                            disabled={isUpdating}
+                          >
+                            {isUpdating ? <Loader2 className="h-4 w-4 animate-spin" /> : <Trash2 className="h-4 w-4" />}
+                          </Button>
+                        </div>
+                      </div>
+                    ))}
+                  </div>
+                )}
+              </div>
+            </CardContent>
+          </Card>
         </TabsContent>
         
         {/* Data Tab */}

@@ -15,6 +15,7 @@ interface VapiAssistant {
     systemPrompt?: string;
     temperature?: number;
     maxTokens?: number;
+    toolIds?: string[];
   };
   voice?: {
     provider: string;
@@ -75,6 +76,7 @@ interface UpdateAssistantParams {
   transcriptionLanguage?: string;
   modelTemperature?: number;
   maxTokens?: number;
+  toolIds?: string[];
 }
 
 interface StructuredOutputSchema {
@@ -103,6 +105,52 @@ interface StructuredOutput {
   updatedAt: string;
 }
 
+interface VapiFile {
+  id: string;
+  orgId: string;
+  name: string;
+  url: string;
+  mimeType: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface VapiTool {
+  id: string;
+  type: string;
+  function?: {
+    name: string;
+    description?: string;
+    parameters?: any;
+  };
+  knowledgeBases?: Array<{
+    provider: string;
+    name: string;
+    description?: string;
+    fileIds: string[];
+  }>;
+}
+
+interface CreateToolParams {
+  type: 'query' | 'function' | 'dtmf' | 'endCall' | 'transferCall';
+  function?: {
+    name: string;
+    description?: string;
+    parameters?: any;
+  };
+  knowledgeBases?: Array<{
+    provider: string;
+    name: string;
+    description?: string;
+    fileIds: string[];
+  }>;
+  async?: boolean;
+  messages?: Array<{
+    type: string;
+    content: string;
+  }>;
+}
+
 class VapiClient {
   private apiKey: string;
 
@@ -119,13 +167,20 @@ class VapiClient {
   ): Promise<T> {
     const url = `${VAPI_BASE_URL}${endpoint}`;
 
+    // Prepare headers
+    const headers: Record<string, string> = {
+      'Authorization': `Bearer ${this.apiKey}`,
+      ...((options.headers as Record<string, string>) || {}),
+    };
+
+    // Only set Content-Type if body is not FormData (fetch handles multipart automatically)
+    if (!(options.body instanceof FormData)) {
+      headers['Content-Type'] = 'application/json';
+    }
+
     const response = await fetch(url, {
       ...options,
-      headers: {
-        'Authorization': `Bearer ${this.apiKey}`,
-        'Content-Type': 'application/json',
-        ...options.headers,
-      },
+      headers,
     });
 
     if (!response.ok) {
@@ -213,7 +268,7 @@ class VapiClient {
     }
 
     // Model configuration
-    if (params.systemPrompt || params.model || params.modelTemperature || params.maxTokens) {
+    if (params.systemPrompt || params.model || params.modelTemperature || params.maxTokens || params.toolIds) {
       // We need to be careful not to overwrite existing model config if we don't have it.
       // But Vapi API requires full model object usually.
       // For this implementation, we reconstruct what we know.
@@ -224,6 +279,10 @@ class VapiClient {
         temperature: params.modelTemperature ?? 0.7,
         maxTokens: params.maxTokens ?? 250,
       };
+
+      if (params.toolIds) {
+        payload.model.toolIds = params.toolIds;
+      }
 
       if (params.systemPrompt) {
         payload.model.messages = [
@@ -298,6 +357,66 @@ class VapiClient {
       body: JSON.stringify(params),
     });
   }
+
+  /**
+   * Upload a file to Vapi
+   */
+  async uploadFile(file: File): Promise<VapiFile> {
+    const formData = new FormData();
+    formData.append('file', file);
+
+    return this.request<VapiFile>('/file', {
+      method: 'POST',
+      body: formData,
+    });
+  }
+
+  /**
+   * Delete a file from Vapi
+   */
+  async deleteFile(fileId: string): Promise<void> {
+    await this.request(`/file/${fileId}`, {
+      method: 'DELETE',
+    });
+  }
+
+  /**
+   * Create a tool
+   */
+  async createTool(params: CreateToolParams): Promise<VapiTool> {
+    return this.request<VapiTool>('/tool', {
+      method: 'POST',
+      body: JSON.stringify(params),
+    });
+  }
+
+  /**
+   * Update a tool
+   */
+  async updateTool(toolId: string, params: Partial<CreateToolParams>): Promise<VapiTool> {
+    return this.request<VapiTool>(`/tool/${toolId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(params),
+    });
+  }
+
+  /**
+   * List tools
+   */
+  async listTools(): Promise<VapiTool[]> {
+    return this.request<VapiTool[]>('/tool', {
+      method: 'GET',
+    });
+  }
+  
+  /**
+   * Get tool
+   */
+  async getTool(toolId: string): Promise<VapiTool> {
+      return this.request<VapiTool>(`/tool/${toolId}`, {
+          method: 'GET'
+      });
+  }
 }
 
 // Export a singleton instance
@@ -311,5 +430,8 @@ export type {
   StructuredOutput,
   CreateStructuredOutputParams,
   UpdateStructuredOutputParams,
-  StructuredOutputSchema
+  StructuredOutputSchema,
+  VapiFile,
+  VapiTool,
+  CreateToolParams
 };
