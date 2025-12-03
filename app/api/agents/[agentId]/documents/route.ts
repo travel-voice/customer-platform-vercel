@@ -337,24 +337,18 @@ async function syncKnowledgeBase(supabase: any, agentId: string, vapiAssistantId
             // Detach from assistant
             const newToolIds = currentToolIds.filter((id: string) => id !== existingTool.id);
 
-            // Remove KB instruction from prompt (use DB prompt as base)
+            // Clear KB instruction from DB (it's stored separately, not in system_prompt)
             const currentSystemPrompt = agent?.system_prompt || '';
-            let cleanSystemPrompt = currentSystemPrompt;
-            
-            // Remove the specific KB block we add
-            cleanSystemPrompt = currentSystemPrompt.replace(/\n\n\[Knowledge Base Access\]\n[\s\S]*?(?=(\n\n|$))/, '').trim();
-                
-            // Also update DB
-            await supabase.from('agents').update({ system_prompt: cleanSystemPrompt }).eq('uuid', agentId);
+            await supabase.from('agents').update({ kb_instruction: null }).eq('uuid', agentId);
 
-            // Update Vapi (User Prompt + Hidden Suffix)
+            // Update Vapi (User Prompt + Hidden Suffix, no KB instruction)
             await vapiClient.updateAssistant(vapiAssistantId, {
                 modelProvider: assistant.model?.provider,
                 model: assistant.model?.model || 'gpt-4o-mini',
                 modelTemperature: assistant.model?.temperature ?? 0.7,
                 maxTokens: assistant.model?.maxTokens ?? 250,
                 toolIds: newToolIds,
-                systemPrompt: `${cleanSystemPrompt}\n${HIDDEN_SYSTEM_PROMPT_SUFFIX}`
+                systemPrompt: `${currentSystemPrompt}\n${HIDDEN_SYSTEM_PROMPT_SUFFIX}`
             });
             
             // Ideally delete the tool itself too, but strictly optional if we detached it.
@@ -438,18 +432,15 @@ async function syncKnowledgeBase(supabase: any, agentId: string, vapiAssistantId
     // Update Assistant System Prompt & Tool Attachment
     const currentSystemPrompt = agent?.system_prompt || '';
     
-    // Construct new prompt with KB instruction
-    // Remove old block if exists, then append new
-    let newSystemPrompt = currentSystemPrompt.replace(/\n\n\[Knowledge Base Access\]\n[\s\S]*?(?=(\n\n|$))/, '').trim();
-    newSystemPrompt += `\n\n[Knowledge Base Access]\n${kbInstruction}`;
-
-    // Save to DB (Visible Prompt)
-    await supabase.from('agents').update({ system_prompt: newSystemPrompt }).eq('uuid', agentId);
+    // Store KB instruction separately (hidden from users)
+    const kbInstructionBlock = `[Knowledge Base Access]\n${kbInstruction}`;
+    await supabase.from('agents').update({ kb_instruction: kbInstructionBlock }).eq('uuid', agentId);
 
     // Attach tool if missing
     const newToolIds = currentToolIds.includes(kbToolId) ? currentToolIds : [...currentToolIds, kbToolId];
 
-    // Send to Vapi (Visible Prompt + Hidden Suffix)
+    // Send to Vapi (User Prompt + KB Instruction + Hidden Suffix)
+    // KB instruction is hidden from UI but sent to Vapi
     console.log('Syncing KB for agent:', agentId);
     console.log('New Tool IDs:', newToolIds);
     console.log('Model Provider:', assistant.model?.provider);
@@ -460,6 +451,6 @@ async function syncKnowledgeBase(supabase: any, agentId: string, vapiAssistantId
         modelTemperature: assistant.model?.temperature ?? 0.7,
         maxTokens: assistant.model?.maxTokens ?? 250,
         toolIds: newToolIds,
-        systemPrompt: `${newSystemPrompt}\n${HIDDEN_SYSTEM_PROMPT_SUFFIX}`
+        systemPrompt: `${currentSystemPrompt}\n\n${kbInstructionBlock}\n${HIDDEN_SYSTEM_PROMPT_SUFFIX}`
     });
 }

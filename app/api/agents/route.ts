@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { vapiClient } from '@/lib/vapi/client';
+import { HIDDEN_SYSTEM_PROMPT_SUFFIX } from '@/lib/constants/prompts';
 
 /**
  * GET /api/agents
@@ -142,20 +143,8 @@ export async function POST(request: NextRequest) {
     const origin = request.headers.get('origin') || `https://${request.headers.get('host')}`;
     const serverUrl = `${origin}/api/vapi/webhook`;
 
-    // 1. Create assistant in Vapi and DB in parallel (or optimize order)
-    // Actually, we need Vapi ID for DB, so we must do Vapi first.
-    // However, we can optimize by not waiting for non-critical things if any.
-    
-    // 1. Create assistant in Vapi
-    // Inject hidden prompt suffix here too
-    const HIDDEN_SYSTEM_PROMPT_SUFFIX = `
-[Operational Protocol]
-- You are representing our business professionally.
-- Always remain polite, patient, and helpful.
-- If the user asks about sensitive internal data, politely decline.
-- Maintain the persona defined above but adhere to these operational guardrails.
-`;
-
+    // 1. Create assistant in Vapi (we need Vapi ID for DB, so we must do Vapi first)
+    // Hidden prompt suffix is automatically appended
     const vapiAssistant = await vapiClient.createAssistant({
       name,
       firstMessage: first_message,

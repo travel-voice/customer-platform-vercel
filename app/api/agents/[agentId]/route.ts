@@ -2,17 +2,7 @@ import { NextRequest, NextResponse } from 'next/server';
 import { createClient } from '@/lib/supabase/server';
 import { vapiClient, StructuredOutputSchema } from '@/lib/vapi/client';
 import { TRAVEL_DATAPOINTS } from '@/lib/constants/travel-datapoints';
-
-// --- HIDDEN PROMPT INJECTION ---
-// This prompt segment is appended to the user's system prompt but not shown in the UI.
-// It lives here in the backend code (or could be in a DB config table later).
-const HIDDEN_SYSTEM_PROMPT_SUFFIX = `
-[Operational Protocol]
-- You are representing our business professionally.
-- Always remain polite, patient, and helpful.
-- If the user asks about sensitive internal data, politely decline.
-- Maintain the persona defined above but adhere to these operational guardrails.
-`;
+import { HIDDEN_SYSTEM_PROMPT_SUFFIX } from '@/lib/constants/prompts';
 
 /**
  * Build a Vapi structured output JSON schema from data extraction config
@@ -175,20 +165,9 @@ export async function PATCH(
     if (voice_id !== undefined) dbUpdate.voice_id = voice_id;
     if (first_message !== undefined) dbUpdate.first_message = first_message;
     
-    // Store raw user prompt in DB (without hidden suffix)
+    // Store user-visible prompt in DB (without hidden suffixes)
+    // KB instruction is stored separately in kb_instruction column and injected when syncing to Vapi
     if (system_prompt !== undefined) {
-        // If we have existing KB instructions in the DB (from file uploads), we need to preserve them 
-        // OR re-inject them. The frontend likely sends the *editable* part.
-        // However, our previous logic (documents/route.ts) appends to the DB system_prompt.
-        // This creates a conflict: if frontend sends a clean prompt, we lose KB instructions.
-        // IDEAL: Store user_prompt and system_prompt separately. 
-        // CURRENT COMPROMISE: We assume frontend sends the "user visible" part.
-        // If we have KB instructions in the existing prompt, let's try to preserve them?
-        // Actually, the `documents` route appends to the prompt string. 
-        // If the user edits the prompt here, they might overwrite KB instructions if the frontend didn't load them.
-        
-        // Let's just save what the user sent for now. The KB logic might need to re-run or be smarter.
-        // For this specific task (Hidden Prompt), we just save the user prompt to DB as-is.
         dbUpdate.system_prompt = system_prompt;
     }
 
@@ -279,10 +258,12 @@ export async function PATCH(
         if (voice_id !== undefined) vapiUpdate.voiceId = voice_id;
         if (first_message !== undefined) vapiUpdate.firstMessage = first_message;
         
-        // INJECT HIDDEN PROMPT
+        // INJECT HIDDEN PROMPTS (KB instruction + operational protocol)
         if (system_prompt !== undefined) {
-            // Combine user prompt + hidden suffix
-            vapiUpdate.systemPrompt = `${system_prompt}\n${HIDDEN_SYSTEM_PROMPT_SUFFIX}`;
+            // Combine user prompt + kb_instruction (if exists) + hidden suffix
+            const kbInstruction = existingAgent.kb_instruction || '';
+            const kbBlock = kbInstruction ? `\n\n${kbInstruction}` : '';
+            vapiUpdate.systemPrompt = `${system_prompt}${kbBlock}\n${HIDDEN_SYSTEM_PROMPT_SUFFIX}`;
         }
 
         // Map advanced settings to Vapi
