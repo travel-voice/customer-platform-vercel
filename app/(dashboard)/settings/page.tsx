@@ -8,6 +8,7 @@ import {
   Copy,
   ExternalLink,
   Globe,
+  Key,
   Plus,
   Shield,
   Trash2,
@@ -138,30 +139,62 @@ export default function AccountSettingsPage() {
         </p>
       </div>
 
-      {/* Team Management Card */}
-      <Card className="border-[#1AADF0]/20 bg-gradient-to-r from-[#1AADF0]/5 to-transparent">
-        <CardHeader>
-          <div className="flex items-center justify-between">
-            <div className="flex items-center gap-3">
-              <div className="p-2 bg-[#1AADF0]/10 rounded-lg">
-                <Users className="h-5 w-5 text-[#1AADF0]" />
-              </div>
-              <div>
-                <CardTitle className="text-lg">Team Management</CardTitle>
-                <CardDescription>
-                  Invite team members and manage access to your organization
-                </CardDescription>
+      {/* Quick Access Cards */}
+      <div className="grid gap-4 sm:grid-cols-2">
+        {/* Team Management Card */}
+        <Card className="border-[#1AADF0]/20 bg-gradient-to-r from-[#1AADF0]/5 to-transparent">
+          <CardHeader>
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-[#1AADF0]/10 rounded-lg">
+                  <Users className="h-5 w-5 text-[#1AADF0]" />
+                </div>
+                <div>
+                  <CardTitle className="text-lg">Team Management</CardTitle>
+                  <CardDescription>
+                    Invite team members and manage access
+                  </CardDescription>
+                </div>
               </div>
             </div>
-            <Button asChild className="bg-[#1AADF0] hover:bg-[#0d8bc9]">
+          </CardHeader>
+          <CardContent className="pt-0">
+            <Button asChild className="w-full bg-[#1AADF0] hover:bg-[#0d8bc9]">
               <Link href="/settings/team">
                 <Users className="h-4 w-4 mr-2" />
                 Manage Team
               </Link>
             </Button>
-          </div>
-        </CardHeader>
-      </Card>
+          </CardContent>
+        </Card>
+
+        {/* API Keys Card */}
+        <Card className="border-amber-500/20 bg-gradient-to-r from-amber-500/5 to-transparent">
+          <CardHeader>
+            <div className="flex items-start justify-between gap-4">
+              <div className="flex items-center gap-3">
+                <div className="p-2 bg-amber-500/10 rounded-lg">
+                  <Key className="h-5 w-5 text-amber-600" />
+                </div>
+                <div>
+                  <CardTitle className="text-lg">API Keys</CardTitle>
+                  <CardDescription>
+                    Manage programmatic access to your data
+                  </CardDescription>
+                </div>
+              </div>
+            </div>
+          </CardHeader>
+          <CardContent className="pt-0">
+            <Button asChild variant="outline" className="w-full border-amber-500/30 hover:bg-amber-50">
+              <Link href="/settings/api-keys">
+                <Key className="h-4 w-4 mr-2" />
+                Manage API Keys
+              </Link>
+            </Button>
+          </CardContent>
+        </Card>
+      </div>
 
       {/* Error Display */}
       {error && (
