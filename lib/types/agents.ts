@@ -51,6 +51,7 @@ export interface ICharacterDetail {
   voicemailMessage?: string;
   beepMaxAwaitSeconds?: number;
   backgroundSound?: string;
+  notificationEmails?: string[];
 }
 
 // Character stats from transcripts API
@@ -98,6 +99,7 @@ export interface ICharacterUpdateRequest {
   voicemailMessage?: string;
   beepMaxAwaitSeconds?: number;
   backgroundSound?: string;
+  notificationEmails?: string[];
   // Persist selected datapoints to extract
   extraction_schema?: IExtractionSchema;
 }

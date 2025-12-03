@@ -30,7 +30,8 @@ import {
   Edit3,
   Upload,
   Camera,
-  Trash2
+  Trash2,
+  X
 } from "lucide-react";
 import { RecordingsList } from "@/components/calls-list";
 import { VOICES_LIST } from "@/lib/types/agents";
@@ -101,6 +102,7 @@ const advancedSettingsSchema = z.object({
   voicemailMessage: z.string().optional(),
   beepMaxAwaitSeconds: z.number().min(0).max(60),
   backgroundSound: z.string().optional(),
+  notificationEmails: z.array(z.string().email("Invalid email address")).optional(),
 });
 
 type ContentFormData = z.infer<typeof contentFormSchema>;
@@ -168,6 +170,9 @@ export default function AgentDetailsPage() {
   const [imagePreviewUrl, setImagePreviewUrl] = useState<string | null>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   
+  // Email notification state
+  const [newEmail, setNewEmail] = useState("");
+
   // Feature flags
   const ADVANCED_COMING_SOON = false;
 
@@ -247,6 +252,7 @@ export default function AgentDetailsPage() {
         voicemailMessage: agentDetail.voicemailMessage || "Sorry we missed you. Please leave a message and we'll get back to you shortly.",
         beepMaxAwaitSeconds: agentDetail.beepMaxAwaitSeconds || 10,
         backgroundSound: agentDetail.backgroundSound || "office",
+        notificationEmails: agentDetail.notificationEmails || [],
       });
     }
   }, [agentDetail, contentForm, voiceForm, advancedSettingsForm]);
@@ -651,6 +657,33 @@ export default function AgentDetailsPage() {
     } catch (err) {
       console.error('Failed to copy:', err);
     }
+  };
+
+  const handleAddEmail = (e: React.FormEvent) => {
+    e.preventDefault();
+    const email = newEmail.trim();
+    if (!email) return;
+    
+    // Simple validation
+    const emailRegex = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+    if (!emailRegex.test(email)) {
+      return;
+    }
+
+    const currentEmails = advancedSettingsForm.getValues("notificationEmails") || [];
+    if (!currentEmails.includes(email)) {
+      advancedSettingsForm.setValue("notificationEmails", [...currentEmails, email], { shouldDirty: true });
+    }
+    setNewEmail("");
+  };
+
+  const handleRemoveEmail = (emailToRemove: string) => {
+    const currentEmails = advancedSettingsForm.getValues("notificationEmails") || [];
+    advancedSettingsForm.setValue(
+      "notificationEmails", 
+      currentEmails.filter(e => e !== emailToRemove),
+      { shouldDirty: true }
+    );
   };
 
   if (isLoading) {
@@ -1753,6 +1786,59 @@ export default function AgentDetailsPage() {
                         min={10} max={1024} step={8}
                       />
                       <p className="text-sm text-right font-mono">{advancedSettingsForm.watch('maxTokens')}</p>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Email Notifications */}
+                <div className="space-y-6">
+                  <h3 className="text-lg font-semibold tracking-tight pb-2 border-b dark:text-white dark:border-gray-700">Email Notifications</h3>
+                  <div className="space-y-4">
+                    <div className="space-y-2">
+                      <Label>Recipient Emails</Label>
+                      <p className="text-sm text-muted-foreground">Receive an email summary and transcript after every call.</p>
+                      
+                      <div className="flex gap-2">
+                        <Input 
+                          placeholder="Enter email address" 
+                          value={newEmail}
+                          onChange={(e) => setNewEmail(e.target.value)}
+                          onKeyDown={(e) => {
+                            if (e.key === 'Enter') {
+                              e.preventDefault();
+                              handleAddEmail(e);
+                            }
+                          }}
+                        />
+                        <Button 
+                          type="button" 
+                          variant="outline"
+                          onClick={handleAddEmail}
+                          disabled={!newEmail.trim()}
+                        >
+                          Add
+                        </Button>
+                      </div>
+
+                      <div className="flex flex-wrap gap-2 mt-3">
+                        {advancedSettingsForm.watch("notificationEmails")?.map((email) => (
+                          <Badge key={email} variant="secondary" className="pl-2 pr-1 py-1 flex items-center gap-1">
+                            {email}
+                            <Button
+                              type="button"
+                              variant="ghost"
+                              size="sm"
+                              className="h-4 w-4 p-0 hover:bg-red-100 hover:text-red-600 rounded-full"
+                              onClick={() => handleRemoveEmail(email)}
+                            >
+                              <X className="h-3 w-3" />
+                            </Button>
+                          </Badge>
+                        ))}
+                        {(!advancedSettingsForm.watch("notificationEmails")?.length) && (
+                          <p className="text-sm text-gray-500 italic">No emails configured</p>
+                        )}
+                      </div>
                     </div>
                   </div>
                 </div>

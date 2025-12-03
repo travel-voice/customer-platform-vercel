@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from 'next/server';
 import { createAdminClient } from '@/lib/supabase/server';
+import { resend, formatCallEmailHtml } from '@/lib/email';
 
 export async function POST(request: NextRequest) {
   try {
@@ -41,7 +42,7 @@ export async function POST(request: NextRequest) {
 
       const { data: agent, error: agentError } = await supabase
         .from('agents')
-        .select('uuid, organization_uuid')
+        .select('uuid, organization_uuid, name, advanced_config')
         .eq('vapi_assistant_id', vapiAssistantId)
         .single();
 
@@ -136,6 +137,40 @@ export async function POST(request: NextRequest) {
         endedAt: message.endedAt,
         endedReason: message.endedReason,
       };
+
+      // Send email notifications if configured
+      // We do this asynchronously and don't block the response
+      const notificationEmails = (agent.advanced_config as any)?.notificationEmails;
+      
+      if (Array.isArray(notificationEmails) && notificationEmails.length > 0) {
+        console.log(`Sending email notifications to ${notificationEmails.length} recipients`);
+        
+        const emailHtml = formatCallEmailHtml({
+          agentName: agent.name,
+          summary,
+          transcript: transcriptText,
+          recordingUrl,
+          structuredData,
+          callId: call.id,
+          durationSeconds
+        });
+
+        // Fire and forget (mostly), but catch errors
+        resend.emails.send({
+          from: 'Travel Voice AI <notifications@resend.dev>', // You should update this to your verified domain
+          to: notificationEmails,
+          subject: `Call Report: ${agent.name} - ${new Date().toLocaleString()}`,
+          html: emailHtml,
+        }).then((response) => {
+          if (response.error) {
+            console.error('Failed to send email:', response.error);
+          } else {
+            console.log('Email sent successfully:', response.data?.id);
+          }
+        }).catch((err) => {
+          console.error('Error sending email:', err);
+        });
+      }
 
       // Insert call record
       const { error: insertError } = await supabase

@@ -149,7 +149,8 @@ export async function PATCH(
       // Advanced settings
       firstMessageMode, waitTimeBeforeSpeaking, interruptionThreshold, maxDuration,
       transcriptionLanguage, confidenceThreshold, modelTemperature, maxTokens,
-      voicemailDetectionEnabled, voicemailMessage, beepMaxAwaitSeconds, backgroundSound
+      voicemailDetectionEnabled, voicemailMessage, beepMaxAwaitSeconds, backgroundSound,
+      notificationEmails
     } = body;
 
     // Build update object for database
@@ -177,6 +178,7 @@ export async function PATCH(
     if (voicemailMessage !== undefined) { advancedConfig.voicemailMessage = voicemailMessage; hasAdvancedUpdates = true; }
     if (beepMaxAwaitSeconds !== undefined) { advancedConfig.beepMaxAwaitSeconds = beepMaxAwaitSeconds; hasAdvancedUpdates = true; }
     if (backgroundSound !== undefined) { advancedConfig.backgroundSound = backgroundSound; hasAdvancedUpdates = true; }
+    if (notificationEmails !== undefined) { advancedConfig.notificationEmails = notificationEmails; hasAdvancedUpdates = true; }
 
     if (hasAdvancedUpdates) {
       dbUpdate.advanced_config = advancedConfig;
