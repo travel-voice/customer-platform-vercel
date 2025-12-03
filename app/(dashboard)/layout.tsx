@@ -125,6 +125,7 @@ export default function DashboardLayout({
       if (p === '/payment') return 'Billing';
       if (p === '/payment/confirmation') return 'Payment Confirmation';
       if (p === '/settings') return 'Settings';
+      if (p === '/settings/team') return 'Team Management';
       return 'Dashboard';
     };
     const title = prefix + getPageTitle(pathname || '');

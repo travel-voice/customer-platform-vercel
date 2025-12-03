@@ -20,6 +20,7 @@ export async function middleware(request: NextRequest) {
     '/auth/verify-email',
     '/auth/verification/success',
     '/auth/callback',
+    '/auth/accept-invite',
   ];
 
   const isPublicRoute = publicRoutes.some(route => pathname.startsWith(route));

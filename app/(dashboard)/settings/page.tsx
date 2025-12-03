@@ -11,7 +11,9 @@ import {
   Plus,
   Shield,
   Trash2,
+  Users,
   X} from "lucide-react";
+import Link from "next/link";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
 import { z } from "zod";
@@ -135,6 +137,31 @@ export default function AccountSettingsPage() {
           Manage your domain registration and embed script for website integration
         </p>
       </div>
+
+      {/* Team Management Card */}
+      <Card className="border-[#1AADF0]/20 bg-gradient-to-r from-[#1AADF0]/5 to-transparent">
+        <CardHeader>
+          <div className="flex items-center justify-between">
+            <div className="flex items-center gap-3">
+              <div className="p-2 bg-[#1AADF0]/10 rounded-lg">
+                <Users className="h-5 w-5 text-[#1AADF0]" />
+              </div>
+              <div>
+                <CardTitle className="text-lg">Team Management</CardTitle>
+                <CardDescription>
+                  Invite team members and manage access to your organization
+                </CardDescription>
+              </div>
+            </div>
+            <Button asChild className="bg-[#1AADF0] hover:bg-[#0d8bc9]">
+              <Link href="/settings/team">
+                <Users className="h-4 w-4 mr-2" />
+                Manage Team
+              </Link>
+            </Button>
+          </div>
+        </CardHeader>
+      </Card>
 
       {/* Error Display */}
       {error && (
