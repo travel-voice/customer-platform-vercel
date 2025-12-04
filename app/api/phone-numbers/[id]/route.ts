@@ -43,7 +43,7 @@ export async function PATCH(
         .eq('uuid', user.id)
         .single();
     
-    if (phoneRecord.organization_uuid !== userData?.organization_uuid) {
+    if (!userData?.organization_uuid || phoneRecord.organization_uuid !== userData.organization_uuid) {
         return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
     }
 
