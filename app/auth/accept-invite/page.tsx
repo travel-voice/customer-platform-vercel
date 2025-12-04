@@ -1,7 +1,8 @@
 "use client";
 
 import { zodResolver } from "@hookform/resolvers/zod";
-import { AlertCircle, CheckCircle2, Loader2, Users } from "lucide-react";
+import { motion } from "framer-motion";
+import { AlertCircle, CheckCircle2, Eye, EyeOff, Loader2, Lock, User, Mail } from "lucide-react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Suspense, useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
@@ -9,9 +10,8 @@ import { z } from "zod";
 
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Button } from "@/components/ui/button";
-import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
+import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { Input } from "@/components/ui/input";
-import { Label } from "@/components/ui/label";
 
 const acceptInviteSchema = z.object({
   first_name: z.string().min(1, "First name is required"),
@@ -31,6 +31,26 @@ interface InvitationInfo {
   organizationName: string;
 }
 
+const fadeInVariants = {
+  hidden: { opacity: 0, y: 20 },
+  visible: { 
+    opacity: 1, 
+    y: 0,
+    transition: { duration: 0.6 }
+  }
+};
+
+const staggeredVariants = {
+  hidden: { opacity: 0 },
+  visible: {
+    opacity: 1,
+    transition: {
+      staggerChildren: 0.1,
+      delayChildren: 0.2
+    }
+  }
+};
+
 function AcceptInviteContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -42,6 +62,8 @@ function AcceptInviteContent() {
   const [success, setSuccess] = useState(false);
   const [invitation, setInvitation] = useState<InvitationInfo | null>(null);
   const [userExists, setUserExists] = useState(false);
+  const [showPassword, setShowPassword] = useState(false);
+  const [showConfirmPassword, setShowConfirmPassword] = useState(false);
 
   const form = useForm<AcceptInviteForm>({
     resolver: zodResolver(acceptInviteSchema),
@@ -122,95 +144,113 @@ function AcceptInviteContent() {
 
   if (isLoading) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100">
-        <Card className="w-full max-w-md">
-          <CardContent className="pt-6">
-            <div className="flex flex-col items-center justify-center py-8">
-              <Loader2 className="h-8 w-8 animate-spin text-[#1AADF0]" />
-              <p className="mt-4 text-muted-foreground">Validating invitation...</p>
-            </div>
-          </CardContent>
-        </Card>
+      <div className="flex flex-col items-center justify-center py-12">
+        <Loader2 className="h-8 w-8 animate-spin text-[#1AADF0]" />
+        <p className="mt-4 text-muted-foreground">Validating invitation...</p>
       </div>
     );
   }
 
   if (error && !invitation) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 p-4">
-        <Card className="w-full max-w-md">
-          <CardHeader className="text-center">
-            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-red-100">
-              <AlertCircle className="h-6 w-6 text-red-600" />
-            </div>
-            <CardTitle>Invalid Invitation</CardTitle>
-            <CardDescription>{error}</CardDescription>
-          </CardHeader>
-          <CardContent>
-            <Button 
-              className="w-full" 
-              variant="outline"
-              onClick={() => router.push("/auth/sign-in")}
-            >
-              Go to Sign In
-            </Button>
-          </CardContent>
-        </Card>
-      </div>
+      <motion.div 
+        variants={fadeInVariants}
+        initial="hidden"
+        animate="visible"
+        className="text-center py-8"
+      >
+        <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-red-100">
+          <AlertCircle className="h-6 w-6 text-red-600" />
+        </div>
+        <h2 className="text-xl font-semibold text-gray-900 mb-2">Invalid Invitation</h2>
+        <p className="text-gray-600 mb-6">{error}</p>
+        <Button 
+          className="w-full bg-[#1AADF0] hover:bg-[#0d8bc9]" 
+          onClick={() => router.push("/auth/sign-in")}
+        >
+          Go to Sign In
+        </Button>
+      </motion.div>
     );
   }
 
   if (success) {
     return (
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 p-4">
-        <Card className="w-full max-w-md">
-          <CardHeader className="text-center">
-            <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-green-100">
-              <CheckCircle2 className="h-6 w-6 text-green-600" />
-            </div>
-            <CardTitle>Welcome to the Team!</CardTitle>
-            <CardDescription>
-              You&apos;ve successfully joined {invitation?.organizationName}. Redirecting to sign in...
-            </CardDescription>
-          </CardHeader>
-          <CardContent>
-            <div className="flex justify-center">
-              <Loader2 className="h-5 w-5 animate-spin text-[#1AADF0]" />
-            </div>
-          </CardContent>
-        </Card>
-      </div>
+      <motion.div 
+        variants={fadeInVariants}
+        initial="hidden"
+        animate="visible"
+        className="text-center py-8"
+      >
+        <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-green-100">
+          <CheckCircle2 className="h-6 w-6 text-green-600" />
+        </div>
+        <h2 className="text-xl font-semibold text-gray-900 mb-2">Welcome to the Team!</h2>
+        <p className="text-gray-600 mb-6">
+          You&apos;ve successfully joined {invitation?.organizationName}. Redirecting to sign in...
+        </p>
+        <div className="flex justify-center">
+          <Loader2 className="h-5 w-5 animate-spin text-[#1AADF0]" />
+        </div>
+      </motion.div>
     );
   }
 
   return (
-    <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100 p-4">
-      <Card className="w-full max-w-md">
-        <CardHeader className="text-center">
-          <div className="mx-auto mb-4 flex h-12 w-12 items-center justify-center rounded-full bg-[#1AADF0]/10">
-            <Users className="h-6 w-6 text-[#1AADF0]" />
-          </div>
-          <CardTitle>Join {invitation?.organizationName}</CardTitle>
-          <CardDescription>
+    <motion.div
+      variants={fadeInVariants}
+      initial="hidden"
+      animate="visible"
+    >
+      <div className="space-y-6">
+        {/* Header */}
+        <motion.div 
+          className="text-center"
+          variants={fadeInVariants}
+        >
+          <h2 className="text-3xl font-bold tracking-tight text-gray-900 mb-2">
+            Join {invitation?.organizationName}
+          </h2>
+          <p className="text-gray-600">
             You&apos;ve been invited to join as {invitation?.role === "admin" ? "an Administrator" : "a Team Member"}
-          </CardDescription>
-        </CardHeader>
-        <CardContent>
+          </p>
+        </motion.div>
+
+        {/* Content */}
+        <motion.div 
+          variants={staggeredVariants}
+          initial="hidden"
+          animate="visible"
+          className="space-y-6"
+        >
           {error && (
-            <Alert variant="destructive" className="mb-4">
-              <AlertCircle className="h-4 w-4" />
-              <AlertDescription>{error}</AlertDescription>
-            </Alert>
+            <motion.div variants={fadeInVariants}>
+              <Alert variant="destructive" className="border-red-200 bg-red-50">
+                <AlertCircle className="h-4 w-4 text-red-600" />
+                <AlertDescription className="text-red-700">{error}</AlertDescription>
+              </Alert>
+            </motion.div>
           )}
 
-          <div className="mb-6 p-3 bg-slate-50 rounded-lg">
-            <p className="text-sm text-muted-foreground">Email</p>
-            <p className="font-medium">{invitation?.email}</p>
-          </div>
+          {/* Email display */}
+          <motion.div variants={fadeInVariants}>
+            <div className="relative">
+              <div className="absolute inset-0 flex items-center">
+                <span className="w-full border-t border-gray-200" />
+              </div>
+              <div className="relative flex justify-center">
+                <span className="bg-white px-2 text-sm text-gray-500">Invitation for</span>
+              </div>
+            </div>
+            <div className="mt-4 flex items-center justify-center space-x-2 text-gray-900 font-medium bg-slate-50 py-3 px-4 rounded-lg border border-slate-100">
+              <Mail className="h-4 w-4 text-gray-500" />
+              <span>{invitation?.email}</span>
+            </div>
+          </motion.div>
 
           {userExists ? (
-            <div className="space-y-4">
-              <p className="text-sm text-muted-foreground">
+            <motion.div variants={fadeInVariants} className="space-y-4 pt-4">
+              <p className="text-center text-gray-600">
                 An account with this email already exists. Please contact support to join this organization.
               </p>
               <Button 
@@ -220,98 +260,159 @@ function AcceptInviteContent() {
               >
                 Go to Sign In
               </Button>
-            </div>
+            </motion.div>
           ) : (
-            <form onSubmit={form.handleSubmit(handleAcceptInvite)} className="space-y-4">
-              <div className="grid grid-cols-2 gap-4">
-                <div className="space-y-2">
-                  <Label htmlFor="first_name">First Name</Label>
-                  <Input
-                    id="first_name"
-                    {...form.register("first_name")}
-                    disabled={isSubmitting}
-                  />
-                  {form.formState.errors.first_name && (
-                    <p className="text-sm text-red-600">{form.formState.errors.first_name.message}</p>
-                  )}
+            <Form {...form}>
+              <form onSubmit={form.handleSubmit(handleAcceptInvite)} className="space-y-5">
+                <div className="grid grid-cols-2 gap-4">
+                  <motion.div variants={fadeInVariants}>
+                    <FormField
+                      control={form.control}
+                      name="first_name"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-gray-700 font-medium">First Name</FormLabel>
+                          <FormControl>
+                            <div className="relative">
+                              <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                              <Input
+                                placeholder="John"
+                                className="pl-10 h-12"
+                                {...field}
+                                disabled={isSubmitting}
+                              />
+                            </div>
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </motion.div>
+                  
+                  <motion.div variants={fadeInVariants}>
+                    <FormField
+                      control={form.control}
+                      name="last_name"
+                      render={({ field }) => (
+                        <FormItem>
+                          <FormLabel className="text-gray-700 font-medium">Last Name</FormLabel>
+                          <FormControl>
+                            <div className="relative">
+                              <User className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                              <Input
+                                placeholder="Doe"
+                                className="pl-10 h-12"
+                                {...field}
+                                disabled={isSubmitting}
+                              />
+                            </div>
+                          </FormControl>
+                          <FormMessage />
+                        </FormItem>
+                      )}
+                    />
+                  </motion.div>
                 </div>
-                <div className="space-y-2">
-                  <Label htmlFor="last_name">Last Name</Label>
-                  <Input
-                    id="last_name"
-                    {...form.register("last_name")}
-                    disabled={isSubmitting}
+
+                <motion.div variants={fadeInVariants}>
+                  <FormField
+                    control={form.control}
+                    name="password"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-gray-700 font-medium">Password</FormLabel>
+                        <FormControl>
+                          <div className="relative">
+                            <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                            <Input
+                              type={showPassword ? "text" : "password"}
+                              placeholder="Create a password"
+                              className="pl-10 pr-10 h-12"
+                              {...field}
+                              disabled={isSubmitting}
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setShowPassword(!showPassword)}
+                              className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                            >
+                              {showPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                            </button>
+                          </div>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
                   />
-                  {form.formState.errors.last_name && (
-                    <p className="text-sm text-red-600">{form.formState.errors.last_name.message}</p>
-                  )}
-                </div>
-              </div>
+                </motion.div>
 
-              <div className="space-y-2">
-                <Label htmlFor="password">Password</Label>
-                <Input
-                  id="password"
-                  type="password"
-                  {...form.register("password")}
-                  disabled={isSubmitting}
-                />
-                {form.formState.errors.password && (
-                  <p className="text-sm text-red-600">{form.formState.errors.password.message}</p>
-                )}
-              </div>
+                <motion.div variants={fadeInVariants}>
+                  <FormField
+                    control={form.control}
+                    name="confirmPassword"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormLabel className="text-gray-700 font-medium">Confirm Password</FormLabel>
+                        <FormControl>
+                          <div className="relative">
+                            <Lock className="absolute left-3 top-1/2 transform -translate-y-1/2 text-gray-400 h-4 w-4" />
+                            <Input
+                              type={showConfirmPassword ? "text" : "password"}
+                              placeholder="Confirm your password"
+                              className="pl-10 pr-10 h-12"
+                              {...field}
+                              disabled={isSubmitting}
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setShowConfirmPassword(!showConfirmPassword)}
+                              className="absolute right-3 top-1/2 transform -translate-y-1/2 text-gray-400 hover:text-gray-600 transition-colors"
+                            >
+                              {showConfirmPassword ? <EyeOff className="h-4 w-4" /> : <Eye className="h-4 w-4" />}
+                            </button>
+                          </div>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                </motion.div>
 
-              <div className="space-y-2">
-                <Label htmlFor="confirmPassword">Confirm Password</Label>
-                <Input
-                  id="confirmPassword"
-                  type="password"
-                  {...form.register("confirmPassword")}
-                  disabled={isSubmitting}
-                />
-                {form.formState.errors.confirmPassword && (
-                  <p className="text-sm text-red-600">{form.formState.errors.confirmPassword.message}</p>
-                )}
-              </div>
-
-              <Button 
-                type="submit" 
-                className="w-full bg-[#1AADF0] hover:bg-[#0d8bc9]"
-                disabled={isSubmitting}
-              >
-                {isSubmitting ? (
-                  <>
-                    <Loader2 className="mr-2 h-4 w-4 animate-spin" />
-                    Joining...
-                  </>
-                ) : (
-                  "Accept Invitation"
-                )}
-              </Button>
-            </form>
+                <motion.div variants={fadeInVariants}>
+                  <Button 
+                    type="submit" 
+                    size="lg"
+                    className="w-full font-bold bg-[#1AADF0] hover:bg-[#0d8bc9]"
+                    disabled={isSubmitting}
+                  >
+                    {isSubmitting ? (
+                      <div className="flex items-center space-x-2">
+                        <div className="w-4 h-4 border-2 border-white border-t-transparent rounded-full animate-spin" />
+                        <span>Joining Team...</span>
+                      </div>
+                    ) : (
+                      "Accept Invitation"
+                    )}
+                  </Button>
+                </motion.div>
+              </form>
+            </Form>
           )}
-        </CardContent>
-      </Card>
-    </div>
+        </motion.div>
+      </div>
+    </motion.div>
   );
 }
 
 export default function AcceptInvitePage() {
   return (
     <Suspense fallback={
-      <div className="min-h-screen flex items-center justify-center bg-gradient-to-br from-slate-50 to-slate-100">
-        <Card className="w-full max-w-md">
-          <CardContent className="pt-6">
-            <div className="flex flex-col items-center justify-center py-8">
-              <Loader2 className="h-8 w-8 animate-spin text-[#1AADF0]" />
-              <p className="mt-4 text-muted-foreground">Loading...</p>
-            </div>
-          </CardContent>
-        </Card>
+      <div className="flex flex-col items-center justify-center py-12">
+        <Loader2 className="h-8 w-8 animate-spin text-[#1AADF0]" />
+        <p className="mt-4 text-muted-foreground">Loading...</p>
       </div>
     }>
       <AcceptInviteContent />
     </Suspense>
   );
 }
-
