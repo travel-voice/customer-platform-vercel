@@ -64,6 +64,14 @@ export async function POST(request: NextRequest) {
       // Send webhook to customer endpoint if configured
       if (agent.custom_webhook_url) {
         console.log(`Sending webhook to customer endpoint: ${agent.custom_webhook_url}`);
+
+        // Construct simplified payload
+        const customerPayload = {
+            assistant_name: agent.name,
+            summary: summary || "No summary available",
+            transcript: transcriptText || "No transcript available",
+            extracted_data: structuredData || {}
+        };
         
         // Fire and forget
         fetch(agent.custom_webhook_url, {
@@ -73,7 +81,7 @@ export async function POST(request: NextRequest) {
             'X-Agent-UUID': agent.uuid,
             'X-Organization-UUID': agent.organization_uuid,
           },
-          body: JSON.stringify(payload),
+          body: JSON.stringify(customerPayload),
         })
         .then(res => {
           console.log(`Customer webhook response: ${res.status}`);

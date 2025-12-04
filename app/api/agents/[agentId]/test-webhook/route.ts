@@ -48,81 +48,14 @@ export async function POST(
       return NextResponse.json({ error: 'No webhook URL configured for this agent' }, { status: 400 });
     }
 
-    // Create mock payload - mimics Vapi's end-of-call-report
-    const mockPayload = {
-      "message": {
-        "type": "end-of-call-report",
-        "endedReason": "customer-ended-call",
-        "cost": 0.024,
-        "costs": [
-          {
-            "type": "transcription",
-            "cost": 0.008
-          },
-          {
-            "type": "voice",
-            "cost": 0.008
-          },
-          {
-            "type": "model",
-            "cost": 0.008
-          }
-        ],
-        "timestamp": new Date().toISOString(),
-        "call": {
-          "id": "test-call-" + Date.now(),
-          "orgId": agent.organization_uuid,
-          "createdAt": new Date(Date.now() - 60000).toISOString(),
-          "updatedAt": new Date().toISOString(),
-          "type": "inboundPhoneCall",
-          "status": "ended",
-          "assistantId": "test-assistant-id",
-          "customer": {
-            "number": "+1234567890",
-            "name": "Test User"
-          },
-          "startedAt": new Date(Date.now() - 55000).toISOString(),
-          "endedAt": new Date().toISOString(),
-          "cost": 0.024
-        },
-        "transcript": "AI: Hello, how can I help you today?\nUser: I'm just testing the webhook integration.\nAI: Understood. I can confirm the webhook is configured correctly. Is there anything else?\nUser: No, that's all. Goodbye.\nAI: Have a great day!",
-        "summary": "The user called to test the webhook integration. The AI confirmed the configuration was correct. The user ended the call.",
-        "recordingUrl": "https://api.vapi.ai/recordings/test-recording.mp3",
-        "stereoRecordingUrl": "https://api.vapi.ai/recordings/test-stereo.mp3",
-        "artifact": {
-          "messages": [
-            {
-              "role": "assistant",
-              "content": "Hello, how can I help you today?"
-            },
-            {
-              "role": "user",
-              "content": "I'm just testing the webhook integration."
-            },
-            {
-              "role": "assistant",
-              "content": "Understood. I can confirm the webhook is configured correctly. Is there anything else?"
-            },
-            {
-              "role": "user",
-              "content": "No, that's all. Goodbye."
-            },
-            {
-              "role": "assistant",
-              "content": "Have a great day!"
-            }
-          ],
-          "recordingUrl": "https://api.vapi.ai/recordings/test-recording.mp3",
-          "stereoRecordingUrl": "https://api.vapi.ai/recordings/test-stereo.mp3"
-        },
-        "analysis": {
-          "summary": "The user called to test the webhook integration. The AI confirmed the configuration was correct. The user ended the call.",
-          "successEvaluation": "true",
-          "structuredData": {
-             "test_status": "success",
-             "integration_verified": true
-          }
-        }
+    // Create simplified mock payload
+    const customerPayload = {
+      assistant_name: agent.name,
+      summary: "The user called to test the webhook integration. The AI confirmed the configuration was correct. The user ended the call.",
+      transcript: "AI: Hello, how can I help you today?\nUser: I'm just testing the webhook integration.\nAI: Understood. I can confirm the webhook is configured correctly. Is there anything else?\nUser: No, that's all. Goodbye.\nAI: Have a great day!",
+      extracted_data: {
+         "test_status": "success",
+         "integration_verified": true
       }
     };
 
@@ -138,7 +71,7 @@ export async function POST(
           'X-Organization-UUID': agent.organization_uuid,
           'X-Event-Type': 'test_webhook'
         },
-        body: JSON.stringify(mockPayload),
+        body: JSON.stringify(customerPayload),
       });
 
       const success = response.ok;
