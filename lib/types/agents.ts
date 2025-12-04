@@ -68,6 +68,9 @@ export interface ICharacterDetail {
   
   // Knowledge Base
   knowledge_base?: IKnowledgeBaseFile[];
+
+  // Integration Config
+  custom_webhook_url?: string;
 }
 
 // Character stats from transcripts API
@@ -118,6 +121,7 @@ export interface ICharacterUpdateRequest {
   notificationEmails?: string[];
   // Persist selected datapoints to extract
   extraction_schema?: IExtractionSchema;
+  custom_webhook_url?: string;
 }
 
 // Available voices list (static data from the original app)

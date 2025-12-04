@@ -42,7 +42,7 @@ export async function POST(request: NextRequest) {
 
       const { data: agent, error: agentError } = await supabase
         .from('agents')
-        .select('uuid, organization_uuid, name, advanced_config')
+        .select('uuid, organization_uuid, name, advanced_config, custom_webhook_url')
         .eq('vapi_assistant_id', vapiAssistantId)
         .single();
 
@@ -60,6 +60,31 @@ export async function POST(request: NextRequest) {
       }
 
       console.log('Found agent:', agent);
+
+      // Send webhook to customer endpoint if configured
+      if (agent.custom_webhook_url) {
+        console.log(`Sending webhook to customer endpoint: ${agent.custom_webhook_url}`);
+        
+        // Fire and forget
+        fetch(agent.custom_webhook_url, {
+          method: 'POST',
+          headers: {
+            'Content-Type': 'application/json',
+            'X-Agent-UUID': agent.uuid,
+            'X-Organization-UUID': agent.organization_uuid,
+          },
+          body: JSON.stringify(payload),
+        })
+        .then(res => {
+          console.log(`Customer webhook response: ${res.status}`);
+          if (!res.ok) {
+            console.error(`Customer webhook failed with status ${res.status}`);
+          }
+        })
+        .catch(err => {
+          console.error('Error sending customer webhook:', err);
+        });
+      }
 
       // Prepare call details
       const durationSeconds = Math.round(

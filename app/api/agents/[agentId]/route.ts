@@ -155,7 +155,8 @@ export async function PATCH(
       firstMessageMode, waitTimeBeforeSpeaking, interruptionThreshold, maxDuration,
       transcriptionLanguage, confidenceThreshold, modelTemperature, maxTokens,
       voicemailDetectionEnabled, voicemailMessage, beepMaxAwaitSeconds, backgroundSound,
-      notificationEmails
+      notificationEmails,
+      customWebhookUrl
     } = body;
 
     // Build update object for database
@@ -164,6 +165,7 @@ export async function PATCH(
     if (image !== undefined) dbUpdate.image = image;
     if (voice_id !== undefined) dbUpdate.voice_id = voice_id;
     if (first_message !== undefined) dbUpdate.first_message = first_message;
+    if (customWebhookUrl !== undefined) dbUpdate.custom_webhook_url = customWebhookUrl;
     
     // Store user-visible prompt in DB (without hidden suffixes)
     // KB instruction is stored separately in kb_instruction column and injected when syncing to Vapi

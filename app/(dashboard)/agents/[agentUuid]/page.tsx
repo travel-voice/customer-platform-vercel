@@ -107,6 +107,7 @@ const advancedSettingsSchema = z.object({
   beepMaxAwaitSeconds: z.number().min(0).max(60),
   backgroundSound: z.string().optional(),
   notificationEmails: z.array(z.string().email("Invalid email address")).optional(),
+  customWebhookUrl: z.string().url("Invalid URL").optional().or(z.literal("")),
 });
 
 type ContentFormData = z.infer<typeof contentFormSchema>;
@@ -288,6 +289,7 @@ export default function AgentDetailsPage() {
       voicemailMessage: "Sorry we missed you. Please leave a message and we'll get back to you shortly.",
       beepMaxAwaitSeconds: 10,
       backgroundSound: "office",
+      customWebhookUrl: "",
     },
   });
 
@@ -2155,11 +2157,41 @@ export default function AgentDetailsPage() {
                       <span className="inline-block h-2 w-2 rounded-full bg-green-500"></span>
                       Active
                     </div>
-                    {/* We use the main form submission, but user might expect "Save" here too. 
-                        Actually, since this is inside the form, we can add a save button specific to this tab if we want, 
-                        or just rely on the main save button at the bottom. 
-                        Let's add a specific save button for clarity since tabs separate content.
-                    */}
+                  </div>
+                </div>
+
+                {/* Webhook Integration Card */}
+                <div className="rounded-xl border border-gray-200 dark:border-gray-800 bg-white dark:bg-gray-900/50 overflow-hidden transition-all hover:shadow-md">
+                  <div className="p-6 flex flex-col md:flex-row gap-6">
+                    <div className="flex-shrink-0">
+                      <div className="h-12 w-12 rounded-lg bg-purple-100 dark:bg-purple-900/30 flex items-center justify-center text-purple-600 dark:text-purple-400">
+                        <ExternalLink className="h-6 w-6" />
+                      </div>
+                    </div>
+                    <div className="flex-1 space-y-4">
+                      <div>
+                        <h3 className="text-lg font-semibold text-gray-900 dark:text-white">Webhook Integration</h3>
+                        <p className="text-sm text-gray-500 dark:text-gray-400">Send call data to your own endpoint immediately after every call.</p>
+                      </div>
+                      
+                      <div className="space-y-3">
+                        <div className="space-y-2">
+                          <Label>Webhook URL</Label>
+                          <Input 
+                            placeholder="https://api.yourdomain.com/webhook" 
+                            {...advancedSettingsForm.register("customWebhookUrl")}
+                            className="max-w-full"
+                          />
+                          <p className="text-xs text-gray-500">We will send a POST request with the full call payload to this URL.</p>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                  <div className="bg-gray-50 dark:bg-gray-800/50 px-6 py-3 border-t border-gray-200 dark:border-gray-800 flex justify-between items-center">
+                    <div className="text-xs text-gray-500 flex items-center gap-1">
+                      <span className={`inline-block h-2 w-2 rounded-full ${advancedSettingsForm.watch("customWebhookUrl") ? "bg-green-500" : "bg-gray-300"}`}></span>
+                      {advancedSettingsForm.watch("customWebhookUrl") ? "Active" : "Inactive"}
+                    </div>
                   </div>
                 </div>
               </CardContent>

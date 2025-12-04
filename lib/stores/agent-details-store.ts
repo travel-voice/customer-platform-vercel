@@ -80,6 +80,7 @@ export const useAgentDetailsStore = create<AgentDetailsStore>((set, get) => ({
         organisation_id: 1,
         retrieval_augmented_generation_uuid: '',
         system_prompt: agent.system_prompt || '',
+        custom_webhook_url: agent.custom_webhook_url,
         // Map advanced config
         ...agent.advanced_config
       };
@@ -175,6 +176,7 @@ export const useAgentDetailsStore = create<AgentDetailsStore>((set, get) => ({
             extraction_schema: agent.data_extraction_config 
                 ? { selectedIds: Object.keys(agent.data_extraction_config) }
                 : currentDetail.extraction_schema,
+            custom_webhook_url: agent.custom_webhook_url || currentDetail.custom_webhook_url,
             // Map advanced config
             ...agent.advanced_config
         };
