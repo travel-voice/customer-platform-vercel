@@ -115,6 +115,11 @@ export async function POST(
     }
 
   } catch (error: any) {
+    // The "JSON object" error usually happens when .single() is called but multiple or no rows are found,
+    // OR when the supabase client encounters an unexpected response structure (like HTML instead of JSON).
+    // In this case, it's likely coming from one of the .single() calls if data is missing/ambiguous,
+    // OR it could be the fetch() to the customer URL returning non-JSON if we were parsing it as JSON (which we aren't).
+    
     console.error('Test webhook error:', error);
     return NextResponse.json(
       { error: error.message || 'Internal server error' },
@@ -122,4 +127,3 @@ export async function POST(
     );
   }
 }
-
