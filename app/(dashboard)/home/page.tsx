@@ -78,7 +78,9 @@ export default function CustomerDashboard() {
   const [agentSearch, setAgentSearch] = useState("");
   const [refreshKey, setRefreshKey] = useState(0);
   
-  // Billing is temporarily disabled - to be re-enabled later
+  // Billing state
+  const [remainingMinutes, setRemainingMinutes] = useState(0);
+  const [remainingSeconds, setRemainingSeconds] = useState(0);
   const isLoadingPeriod = false;
   const billingError = null;
   
@@ -114,7 +116,27 @@ export default function CustomerDashboard() {
   useEffect(() => {
     // Call agents API
     getAgents();
-  }, [getAgents]);
+    
+    // Fetch remaining time
+    const fetchRemainingTime = async () => {
+      if (user?.organisation_uuid) {
+        const supabase = await import('@/lib/supabase/client').then(m => m.createClient());
+        const { data } = await supabase
+          .from('organizations')
+          .select('time_remaining_seconds')
+          .eq('uuid', user.organisation_uuid)
+          .single();
+        
+        if (data) {
+          const totalSeconds = data.time_remaining_seconds || 0;
+          setRemainingMinutes(Math.floor(totalSeconds / 60));
+          setRemainingSeconds(totalSeconds % 60);
+        }
+      }
+    };
+    
+    fetchRemainingTime();
+  }, [getAgents, user?.organisation_uuid]);
 
   // Detect first complete agents load (wait for a true -> false transition)
   useEffect(() => {
@@ -230,7 +252,7 @@ export default function CustomerDashboard() {
     },
     {
       title: "Remaining Time",
-      value: '0m 0s',
+      value: `${remainingMinutes}m ${remainingSeconds}s`,
       description: "On your current plan",
       icon: Timer,
       color: "from-[#28F16B] to-[#22c55e]",
