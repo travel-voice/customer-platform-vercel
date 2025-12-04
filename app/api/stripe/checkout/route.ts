@@ -73,8 +73,8 @@ export async function POST(req: NextRequest) {
         },
       ],
       mode: 'subscription',
-      success_url: `${process.env.NEXT_PUBLIC_APP_URL || 'https://travelvoice.co.uk'}/payment/success?session_id={CHECKOUT_SESSION_ID}`,
-      cancel_url: `${process.env.NEXT_PUBLIC_APP_URL || 'https://travelvoice.co.uk'}/payment?canceled=true`,
+      success_url: `${process.env.NEXT_PUBLIC_APP_URL || 'https://app.travelvoice.co.uk'}/payment?success=true`,
+      cancel_url: `${process.env.NEXT_PUBLIC_APP_URL || 'https://app.travelvoice.co.uk'}/payment?canceled=true`,
       subscription_data: {
         metadata: {
             organization_uuid: userData.organization_uuid,

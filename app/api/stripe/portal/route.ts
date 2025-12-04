@@ -38,7 +38,7 @@ export async function POST(req: NextRequest) {
 
     const session = await stripe.billingPortal.sessions.create({
       customer: org.stripe_customer_id,
-      return_url: `${process.env.NEXT_PUBLIC_APP_URL || 'https://travelvoice.co.uk'}/payment`,
+      return_url: `${process.env.NEXT_PUBLIC_APP_URL || 'https://app.travelvoice.co.uk'}/payment`,
     });
 
     return NextResponse.json({ url: session.url });
