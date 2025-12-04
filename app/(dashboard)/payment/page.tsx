@@ -2,7 +2,8 @@
 
 import { useState, useEffect } from 'react';
 import { useRouter, useSearchParams } from 'next/navigation';
-import { STRIPE_PLANS, Plan } from '@/lib/constants/plans';
+import { STRIPE_PLANS } from '@/lib/constants/plans';
+import { Plan } from '@/lib/types/billing';
 import { Button } from '@/components/ui/button';
 import {
   Card,
@@ -214,4 +215,3 @@ export default function PaymentPage() {
                     </div>
   );
 }
-
