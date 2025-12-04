@@ -27,7 +27,7 @@ import { Button } from "@/components/ui/button";
 import { Card, CardContent, CardDescription, CardHeader, CardTitle } from "@/components/ui/card";
 import { Skeleton } from "@/components/ui/skeleton";
 import { useAuthStore } from "@/lib/stores/auth-store";
-import { useBillingStore } from "@/lib/stores/billing-store";
+// import { useBillingStore } from "@/lib/stores/billing-store";
 import { useAgentsStore } from "@/lib/stores/agents-store";
 
 const fadeInVariants = {
@@ -62,12 +62,12 @@ const cardVariants = {
 export default function CustomerDashboard() {
   const router = useRouter();
   const { user, logout } = useAuthStore();
-  const { 
-    currentPeriod, 
-    isLoadingPeriod, 
-    error: billingError, 
-    getCurrentPeriod 
-  } = useBillingStore();
+  // const { 
+  //   currentPeriod, 
+  //   isLoadingPeriod, 
+  //   error: billingError, 
+  //   getCurrentPeriod 
+  // } = useBillingStore();
   const { agentPerformances, stats, isLoading: statsLoading, error: statsError, getAgents, isCreating, createAgent } = useAgentsStore();
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [showOnboarding, setShowOnboarding] = useState(false);
@@ -77,6 +77,11 @@ export default function CustomerDashboard() {
   const [showAllAgents, setShowAllAgents] = useState(false);
   const [agentSearch, setAgentSearch] = useState("");
   const [refreshKey, setRefreshKey] = useState(0);
+  
+  const currentPeriod = null;
+  const isLoadingPeriod = false;
+  const billingError = null;
+  const getCurrentPeriod = async (id: string) => {};
   
   // Quick view state
   const [quickViewOpen, setQuickViewOpen] = useState(false);

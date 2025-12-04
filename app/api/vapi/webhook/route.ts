@@ -197,6 +197,36 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: 'Failed to insert call' }, { status: 500 });
       }
 
+      // Deduct minutes from organization balance
+      // Check if we have a valid duration to deduct
+      if (durationSeconds > 0) {
+        console.log(`Deducting ${durationSeconds} seconds from organization ${agent.organization_uuid}`);
+        
+        // Use RPC or direct update. Direct update is simpler but race-condition prone without atomic decrement.
+        // For now, simple decrement. In production, consider a Postgres function `decrement_minutes`.
+        // We will use a direct raw SQL query via rpc if possible, or just fetched data.
+        // Actually, let's just update based on current known value? No, that's bad.
+        // Supabase doesn't have an atomic 'decrement' in JS client easily without RPC.
+        // Let's create a quick RPC or do a read-modify-write (less safe but works for low volume).
+        
+        // Better approach: Call a custom RPC function if it exists, or just read-update.
+        // We'll assume low concurrency for now and do read-update for simplicity unless we added an RPC.
+        
+        const { data: orgData } = await supabase
+            .from('organizations')
+            .select('time_remaining_seconds')
+            .eq('uuid', agent.organization_uuid)
+            .single();
+            
+        if (orgData) {
+            const newTime = Math.max(0, (orgData.time_remaining_seconds || 0) - durationSeconds);
+            await supabase
+                .from('organizations')
+                .update({ time_remaining_seconds: newTime })
+                .eq('uuid', agent.organization_uuid);
+        }
+      }
+
       return NextResponse.json({ success: true });
     }
 

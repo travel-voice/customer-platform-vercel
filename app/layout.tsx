@@ -23,6 +23,8 @@ export const metadata: Metadata = {
   description: "AI-powered voice assistant platform",
 };
 
+import { Toaster } from "@/components/ui/toaster";
+
 export default function RootLayout({
   children,
 }: Readonly<{
@@ -35,6 +37,7 @@ export default function RootLayout({
         className={`${dmSans.variable} font-sans antialiased`}
       >
         <SessionProvider>{children}</SessionProvider>
+        <Toaster />
         <SpeedInsights />
         <Analytics />
         {hubspotUrl && (
