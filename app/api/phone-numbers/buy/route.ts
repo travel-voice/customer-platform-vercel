@@ -72,6 +72,26 @@ export async function POST(req: NextRequest) {
       );
     }
 
+    // If assistantId is provided, look up the vapi_assistant_id
+    let vapiAssistantId: string | undefined = undefined;
+    if (assistantId) {
+        const { data: agentData, error: agentError } = await supabase
+            .from('agents')
+            .select('vapi_assistant_id')
+            .eq('uuid', assistantId)
+            .eq('organization_uuid', organizationUuid)
+            .single();
+        
+        if (agentError || !agentData?.vapi_assistant_id) {
+            return NextResponse.json(
+                { error: 'Invalid assistant ID or assistant not found' },
+                { status: 400 }
+            );
+        }
+        
+        vapiAssistantId = agentData.vapi_assistant_id;
+    }
+
     // --- Quota Check Start ---
     // 1. Determine Plan Limits
     // The subscription_plan field usually stores the plan name (e.g., "Standard"). 
@@ -147,7 +167,7 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 3. Import to Vapi
+    // 3. Import to Vapi (using the correct Vapi Assistant ID)
     let vapiNumber;
     try {
       vapiNumber = await vapiClient.importTwilioPhoneNumber({
@@ -155,7 +175,7 @@ export async function POST(req: NextRequest) {
         number: twilioNumber.phoneNumber,
         twilioAccountSid: process.env.TWILIO_ACCOUNT_SID!,
         twilioAuthToken: process.env.TWILIO_AUTH_TOKEN!,
-        assistantId: assistantId || undefined,
+        assistantId: vapiAssistantId, // Now using the correct Vapi ID
       });
     } catch (vapiError: any) {
       console.error('Vapi import error:', vapiError);
@@ -176,15 +196,15 @@ export async function POST(req: NextRequest) {
       );
     }
 
-    // 4. Save to Supabase
+    // 4. Save to Supabase (store our database UUID, not Vapi ID)
     const { error: dbError } = await supabase
       .from('phone_numbers')
       .insert({
         organization_uuid: organizationUuid,
-        agent_uuid: assistantId || null,
+        agent_uuid: assistantId || null, // Store our database UUID
         phone_number: twilioNumber.phoneNumber,
         provider: 'twilio',
-        provider_id: vapiNumber.id, // Store Vapi ID as reference
+        provider_id: vapiNumber.id, // Store Vapi phone number ID as reference
         stripe_subscription_item_id: subscriptionItem ? subscriptionItem.id : null,
         status: 'active',
       });

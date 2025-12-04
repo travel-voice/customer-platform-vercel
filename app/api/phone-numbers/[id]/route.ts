@@ -47,17 +47,37 @@ export async function PATCH(
         return NextResponse.json({ error: 'Unauthorized' }, { status: 403 });
     }
 
-    // Update Vapi
+    // If assistantId is provided, look up the vapi_assistant_id
+    let vapiAssistantId: string | null = null;
+    if (assistantId) {
+        const { data: agentData, error: agentError } = await supabase
+            .from('agents')
+            .select('vapi_assistant_id')
+            .eq('uuid', assistantId)
+            .eq('organization_uuid', userData.organization_uuid)
+            .single();
+        
+        if (agentError || !agentData?.vapi_assistant_id) {
+            return NextResponse.json(
+                { error: 'Invalid assistant ID or assistant not found' },
+                { status: 400 }
+            );
+        }
+        
+        vapiAssistantId = agentData.vapi_assistant_id;
+    }
+
+    // Update Vapi with the correct Vapi Assistant ID
     if (phoneRecord.provider_id) {
       await vapiClient.updatePhoneNumber(phoneRecord.provider_id, {
-        assistantId: assistantId || null,
+        assistantId: vapiAssistantId, // Now using the correct Vapi ID
       });
     }
 
-    // Update Database
+    // Update Database with our UUID
     const { error: updateError } = await supabase
       .from('phone_numbers')
-      .update({ agent_uuid: assistantId || null })
+      .update({ agent_uuid: assistantId || null }) // Store our database UUID
       .eq('uuid', phoneNumberUuid);
 
     if (updateError) {
