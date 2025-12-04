@@ -48,9 +48,9 @@ export async function POST(
       return NextResponse.json({ error: 'No webhook URL configured for this agent' }, { status: 400 });
     }
 
-    // Create simplified mock payload
+    // Create simplified hardcoded test payload
     const customerPayload = {
-      assistant_name: agent.name,
+      assistant_name: "Test Assistant",
       summary: "The user called to test the webhook integration. The AI confirmed the configuration was correct. The user ended the call.",
       transcript: "AI: Hello, how can I help you today?\nUser: I'm just testing the webhook integration.\nAI: Understood. I can confirm the webhook is configured correctly. Is there anything else?\nUser: No, that's all. Goodbye.\nAI: Have a great day!",
       extracted_data: {
