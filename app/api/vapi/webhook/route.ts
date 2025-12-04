@@ -61,6 +61,33 @@ export async function POST(request: NextRequest) {
 
       console.log('Found agent:', agent);
 
+      const transcriptText =
+        message.transcript ||
+        message.artifact?.transcript ||
+        null;
+
+      const summary =
+        message.summary ||
+        message.analysis?.summary ||
+        null;
+
+      const callUrl =
+        message.artifact?.variables?.transport?.callUrl ||
+        message.artifact?.variableValues?.transport?.callUrl ||
+        call.transport?.callUrl ||
+        call.webCallUrl ||
+        null;
+
+      // Extract structured data from Vapi's structured output
+      // This will be in message.artifact.structuredData as an array
+      const structuredData = message.artifact?.structuredData?.[0] || null;
+      
+      console.log('Structured data extracted:', structuredData ? 'Yes' : 'No');
+      if (structuredData) {
+        console.log('Structured data keys:', Object.keys(structuredData));
+        console.log('Structured data sample:', JSON.stringify(structuredData, null, 2));
+      }
+
       // Send webhook to customer endpoint if configured
       if (agent.custom_webhook_url) {
         console.log(`Sending webhook to customer endpoint: ${agent.custom_webhook_url}`);
@@ -92,56 +119,6 @@ export async function POST(request: NextRequest) {
         .catch(err => {
           console.error('Error sending customer webhook:', err);
         });
-      }
-
-      // Prepare call details
-      const durationSeconds = Math.round(
-        message.durationSeconds ??
-        message.durationMs
-          ? message.durationMs / 1000
-          : call.durationSeconds ??
-            call.durationMinutes
-              ? call.durationMinutes * 60
-              : 0
-      );
-
-      const recordingUrl =
-        message.recordingUrl ||
-        message.artifact?.recording?.mono?.combinedUrl ||
-        message.artifact?.recording?.stereoUrl ||
-        message.stereoRecordingUrl ||
-        null;
-
-      const transcriptMessages =
-        message.artifact?.messages ||
-        message.messages ||
-        [];
-
-      const transcriptText =
-        message.transcript ||
-        message.artifact?.transcript ||
-        null;
-
-      const summary =
-        message.summary ||
-        message.analysis?.summary ||
-        null;
-
-      const callUrl =
-        message.artifact?.variables?.transport?.callUrl ||
-        message.artifact?.variableValues?.transport?.callUrl ||
-        call.transport?.callUrl ||
-        call.webCallUrl ||
-        null;
-
-      // Extract structured data from Vapi's structured output
-      // This will be in message.artifact.structuredData as an array
-      const structuredData = message.artifact?.structuredData?.[0] || null;
-      
-      console.log('Structured data extracted:', structuredData ? 'Yes' : 'No');
-      if (structuredData) {
-        console.log('Structured data keys:', Object.keys(structuredData));
-        console.log('Structured data sample:', JSON.stringify(structuredData, null, 2));
       }
 
       const extractedData = {
