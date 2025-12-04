@@ -106,9 +106,23 @@ const EXPIRY_OPTIONS = {
   "365": { label: "1 year", days: 365 },
 };
 
+interface Agent {
+  uuid: string;
+  name: string;
+  vapi_assistant_id: string | null;
+}
+
+interface PhoneNumber {
+  uuid: string;
+  phone_number: string;
+  agent_uuid: string | null;
+}
+
 export default function ApiKeysPage() {
   const { user } = useAuthStore();
   const [apiKeys, setApiKeys] = useState<ApiKey[]>([]);
+  const [agents, setAgents] = useState<Agent[]>([]);
+  const [phoneNumbers, setPhoneNumbers] = useState<PhoneNumber[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
   const [isCreateDialogOpen, setIsCreateDialogOpen] = useState(false);
@@ -119,6 +133,13 @@ export default function ApiKeysPage() {
   const [copiedKey, setCopiedKey] = useState(false);
   const [copiedCode, setCopiedCode] = useState<string | null>(null);
   const [showNewKey, setShowNewKey] = useState(false);
+  
+  // Curl generator state
+  const [selectedAssistant, setSelectedAssistant] = useState<string>("");
+  const [selectedPhone, setSelectedPhone] = useState<string>("");
+  const [customerNumber, setCustomerNumber] = useState<string>("+1");
+  const [variableName, setVariableName] = useState<string>("John");
+  const [variableDate, setVariableDate] = useState<string>("January 15th");
 
   const form = useForm<CreateKeyForm>({
     resolver: zodResolver(createKeySchema),
@@ -151,8 +172,41 @@ export default function ApiKeysPage() {
     }
   };
 
+  const fetchAgents = async () => {
+    try {
+      const response = await fetch("/api/agents");
+      const data = await response.json();
+      if (response.ok && data.agents) {
+        const activeAgents = data.agents.filter((a: Agent) => a.vapi_assistant_id);
+        setAgents(activeAgents);
+        if (activeAgents.length > 0) {
+          setSelectedAssistant(activeAgents[0].uuid);
+        }
+      }
+    } catch (err) {
+      console.error("Failed to load agents:", err);
+    }
+  };
+
+  const fetchPhoneNumbers = async () => {
+    try {
+      const response = await fetch("/api/phone-numbers");
+      const data = await response.json();
+      if (response.ok && data.phoneNumbers) {
+        setPhoneNumbers(data.phoneNumbers);
+        if (data.phoneNumbers.length > 0) {
+          setSelectedPhone(data.phoneNumbers[0].uuid);
+        }
+      }
+    } catch (err) {
+      console.error("Failed to load phone numbers:", err);
+    }
+  };
+
   useEffect(() => {
     fetchApiKeys();
+    fetchAgents();
+    fetchPhoneNumbers();
   }, []);
 
   const handleCreateKey = async (data: CreateKeyForm) => {
@@ -285,6 +339,25 @@ export default function ApiKeysPage() {
     if (scopes.includes("*")) return "Full Access";
     if (scopes.length === 1) return scopes[0];
     return `${scopes.length} scopes`;
+  };
+
+  const generateCurlCommand = () => {
+    const domain = typeof window !== 'undefined' ? window.location.origin : 'https://your-domain.com';
+    return `curl -X POST ${domain}/api/calls/outbound \\
+  -H "Authorization: Bearer YOUR_API_KEY_HERE" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "assistantId": "${selectedAssistant || 'your-assistant-uuid'}",
+    "phoneNumberId": "${selectedPhone || 'your-phone-number-uuid'}",
+    "customer": {
+      "number": "${customerNumber}",
+      "name": "Customer Name"
+    },
+    "variables": {
+      "name": "${variableName}",
+      "appointment_date": "${variableDate}"
+    }
+  }'`;
   };
 
   if (isLoading) {
@@ -501,6 +574,127 @@ export default function ApiKeysPage() {
                   <strong>Required Scope:</strong> Your API key must have <code className="bg-blue-100 px-1 py-0.5 rounded">calls:write</code> permission.
                 </AlertDescription>
               </Alert>
+
+              {/* Interactive Curl Generator */}
+              <div className="space-y-4 mt-6 p-4 border-2 border-[#1AADF0] rounded-lg bg-[#1AADF0]/5">
+                <div className="flex items-center gap-2">
+                  <Code className="h-5 w-5 text-[#1AADF0]" />
+                  <h3 className="font-semibold text-lg">Generate Your Command</h3>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  Select your assistant and phone number to generate a ready-to-use curl command.
+                </p>
+
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-4">
+                  <div className="space-y-2">
+                    <Label htmlFor="curl-assistant">Assistant</Label>
+                    <Select value={selectedAssistant} onValueChange={setSelectedAssistant}>
+                      <SelectTrigger id="curl-assistant">
+                        <SelectValue placeholder="Select assistant" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {agents.length > 0 ? (
+                          agents.map((agent) => (
+                            <SelectItem key={agent.uuid} value={agent.uuid}>
+                              {agent.name}
+                            </SelectItem>
+                          ))
+                        ) : (
+                          <SelectItem value="none" disabled>
+                            No assistants available
+                          </SelectItem>
+                        )}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="curl-phone">Phone Number</Label>
+                    <Select value={selectedPhone} onValueChange={setSelectedPhone}>
+                      <SelectTrigger id="curl-phone">
+                        <SelectValue placeholder="Select phone number" />
+                      </SelectTrigger>
+                      <SelectContent>
+                        {phoneNumbers.length > 0 ? (
+                          phoneNumbers.map((phone) => (
+                            <SelectItem key={phone.uuid} value={phone.uuid}>
+                              {phone.phone_number}
+                            </SelectItem>
+                          ))
+                        ) : (
+                          <SelectItem value="none" disabled>
+                            No phone numbers available
+                          </SelectItem>
+                        )}
+                      </SelectContent>
+                    </Select>
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="curl-customer">Customer Number (E.164)</Label>
+                    <Input
+                      id="curl-customer"
+                      value={customerNumber}
+                      onChange={(e) => setCustomerNumber(e.target.value)}
+                      placeholder="+11231231234"
+                    />
+                  </div>
+
+                  <div className="space-y-2">
+                    <Label htmlFor="curl-var-name">Variable: name</Label>
+                    <Input
+                      id="curl-var-name"
+                      value={variableName}
+                      onChange={(e) => setVariableName(e.target.value)}
+                      placeholder="John"
+                    />
+                  </div>
+
+                  <div className="space-y-2 md:col-span-2">
+                    <Label htmlFor="curl-var-date">Variable: appointment_date</Label>
+                    <Input
+                      id="curl-var-date"
+                      value={variableDate}
+                      onChange={(e) => setVariableDate(e.target.value)}
+                      placeholder="January 15th"
+                    />
+                  </div>
+                </div>
+
+                <div className="space-y-2">
+                  <div className="flex items-center justify-between">
+                    <Label className="text-sm font-medium">Your Generated Command</Label>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => copyToClipboard(generateCurlCommand(), "generated-curl")}
+                    >
+                      {copiedCode === "generated-curl" ? (
+                        <>
+                          <Check className="h-3 w-3 text-green-600 mr-1" />
+                          <span className="text-xs">Copied!</span>
+                        </>
+                      ) : (
+                        <>
+                          <Copy className="h-3 w-3 mr-1" />
+                          <span className="text-xs">Copy</span>
+                        </>
+                      )}
+                    </Button>
+                  </div>
+                  <div className="bg-slate-900 rounded-lg p-4 overflow-x-auto">
+                    <pre className="text-xs text-green-400 font-mono whitespace-pre">
+                      {generateCurlCommand()}
+                    </pre>
+                  </div>
+                  <Alert className="bg-amber-50 border-amber-300">
+                    <AlertCircle className="h-4 w-4 text-amber-600" />
+                    <AlertDescription className="text-sm text-amber-800">
+                      <strong>Remember:</strong> Replace <code className="bg-amber-100 px-1 py-0.5 rounded font-mono">YOUR_API_KEY_HERE</code> with your actual API key from the keys list below.
+                    </AlertDescription>
+                  </Alert>
+                </div>
+              </div>
             </TabsContent>
 
             <TabsContent value="auth" className="space-y-4 mt-4">
