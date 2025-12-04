@@ -78,10 +78,9 @@ export default function CustomerDashboard() {
   const [agentSearch, setAgentSearch] = useState("");
   const [refreshKey, setRefreshKey] = useState(0);
   
-  const currentPeriod = null;
+  // Billing is temporarily disabled - to be re-enabled later
   const isLoadingPeriod = false;
   const billingError = null;
-  const getCurrentPeriod = async (id: string) => {};
   
   // Quick view state
   const [quickViewOpen, setQuickViewOpen] = useState(false);
@@ -113,12 +112,9 @@ export default function CustomerDashboard() {
   };
 
   useEffect(() => {
-    // Call both APIs in parallel
-    if (user?.organisation_uuid) {
-      getCurrentPeriod(user.organisation_uuid);
-    }
+    // Call agents API
     getAgents();
-  }, [user?.organisation_uuid, getCurrentPeriod, getAgents]);
+  }, [getAgents]);
 
   // Detect first complete agents load (wait for a true -> false transition)
   useEffect(() => {
@@ -195,11 +191,6 @@ export default function CustomerDashboard() {
     return `${minutes}m ${secs}s`;
   };
 
-  const getRemainingTime = () => {
-    if (!currentPeriod) return { mins: 0, secs: 0 };
-    return { mins: currentPeriod.rMins, secs: currentPeriod.rSecs };
-  };
-
   const isLoading = statsLoading || isLoadingPeriod;
   const error = statsError || billingError;
 
@@ -239,7 +230,7 @@ export default function CustomerDashboard() {
     },
     {
       title: "Remaining Time",
-      value: currentPeriod ? `${currentPeriod.rMins}m ${currentPeriod.rSecs}s` : '0m 0s',
+      value: '0m 0s',
       description: "On your current plan",
       icon: Timer,
       color: "from-[#28F16B] to-[#22c55e]",
