@@ -301,11 +301,15 @@ export async function PATCH(
       .update(dbUpdate)
       .eq('uuid', agentId)
       .select()
-      .single();
+      .maybeSingle();
 
     if (updateError) {
       console.error('Error updating agent:', updateError);
       return NextResponse.json({ error: updateError.message }, { status: 500 });
+    }
+
+    if (!agent) {
+      return NextResponse.json({ error: 'Agent not found' }, { status: 404 });
     }
 
     return NextResponse.json({ agent });
