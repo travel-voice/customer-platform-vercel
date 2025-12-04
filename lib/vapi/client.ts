@@ -154,6 +154,31 @@ interface CreateToolParams {
   }>;
 }
 
+interface VapiPhoneNumber {
+  id: string;
+  orgId: string;
+  number: string;
+  provider: string;
+  assistantId?: string;
+  name?: string;
+  createdAt: string;
+  updatedAt: string;
+}
+
+interface ImportTwilioNumberParams {
+  provider: 'twilio';
+  number: string;
+  twilioAccountSid: string;
+  twilioAuthToken: string;
+  name?: string;
+  assistantId?: string;
+}
+
+interface UpdatePhoneNumberParams {
+  name?: string;
+  assistantId?: string | null;
+}
+
 class VapiClient {
   private apiKey: string;
 
@@ -413,6 +438,49 @@ class VapiClient {
           method: 'GET'
       });
   }
+
+  // Phone Number Methods
+
+  /**
+   * Import a Twilio phone number into Vapi
+   */
+  async importTwilioPhoneNumber(params: ImportTwilioNumberParams): Promise<VapiPhoneNumber> {
+    return this.request<VapiPhoneNumber>('/phone-number', {
+      method: 'POST',
+      body: JSON.stringify(params),
+    });
+  }
+
+  /**
+   * Update a phone number (e.g. assign assistant)
+   */
+  async updatePhoneNumber(
+    phoneNumberId: string,
+    params: UpdatePhoneNumberParams
+  ): Promise<VapiPhoneNumber> {
+    return this.request<VapiPhoneNumber>(`/phone-number/${phoneNumberId}`, {
+      method: 'PATCH',
+      body: JSON.stringify(params),
+    });
+  }
+
+  /**
+   * List phone numbers
+   */
+  async listPhoneNumbers(): Promise<VapiPhoneNumber[]> {
+    return this.request<VapiPhoneNumber[]>('/phone-number', {
+      method: 'GET',
+    });
+  }
+
+  /**
+   * Delete phone number
+   */
+  async deletePhoneNumber(phoneNumberId: string): Promise<void> {
+    await this.request(`/phone-number/${phoneNumberId}`, {
+      method: 'DELETE',
+    });
+  }
 }
 
 // Export a singleton instance
@@ -429,5 +497,8 @@ export type {
   StructuredOutputSchema,
   VapiFile,
   VapiTool,
-  CreateToolParams
+  CreateToolParams,
+  VapiPhoneNumber,
+  ImportTwilioNumberParams,
+  UpdatePhoneNumberParams
 };

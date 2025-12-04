@@ -1,20 +1,6 @@
-export interface PlanFeature {
-  label: string;
-  isEnabled: boolean;
-}
+import { PlanFeature, Plan } from '@/lib/types/billing';
 
-export interface Plan {
-  id: string;
-  stripePriceId: string;
-  name: string;
-  description: string;
-  price: number;
-  currency: string;
-  period: string;
-  minutesIncluded: number;
-  features: PlanFeature[];
-  isActive?: boolean;
-}
+export const STRIPE_PRICE_ID_PHONE_NUMBER = process.env.NEXT_PUBLIC_STRIPE_PRICE_ID_PHONE_NUMBER || "";
 
 export const STRIPE_PLANS: Plan[] = [
   {
@@ -26,8 +12,10 @@ export const STRIPE_PLANS: Plan[] = [
     currency: "GBP",
     period: "month",
     minutesIncluded: 200,
+    phoneNumbersIncluded: 1,
     features: [
       { label: "200 Travel Voice minutes", isEnabled: true },
+      { label: "1 Phone number included", isEnabled: true },
       { label: "Basic voice selection", isEnabled: true },
       { label: "Email support", isEnabled: true },
       { label: "CRM integration", isEnabled: false },
@@ -44,9 +32,11 @@ export const STRIPE_PLANS: Plan[] = [
     currency: "GBP",
     period: "month",
     minutesIncluded: 1000,
+    phoneNumbersIncluded: 3,
     isActive: true,
     features: [
       { label: "1,000 Travel Voice minutes", isEnabled: true },
+      { label: "3 Phone numbers included", isEnabled: true },
       { label: "Premium voice selection", isEnabled: true },
       { label: "Email support", isEnabled: true },
       { label: "CRM integration", isEnabled: true },
@@ -63,8 +53,10 @@ export const STRIPE_PLANS: Plan[] = [
     currency: "GBP",
     period: "month",
     minutesIncluded: 5000,
+    phoneNumbersIncluded: 10,
     features: [
       { label: "5,000 Travel Voice minutes", isEnabled: true },
+      { label: "10 Phone numbers included", isEnabled: true },
       { label: "All premium voices", isEnabled: true },
       { label: "24/7 priority support", isEnabled: true },
       { label: "Advanced CRM integration", isEnabled: true },

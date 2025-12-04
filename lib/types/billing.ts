@@ -1,12 +1,32 @@
 import { UUID } from './auth';
 
 // Plan feature interface
-export interface IPlanFeature {
+export interface PlanFeature {
   label: string;        // "200 Travel Voice minutes"
   isEnabled: boolean;   // true/false for this plan
 }
 
 // Subscription plan interface
+export interface Plan {
+  id: string;
+  stripePriceId: string;
+  name: string;               // "Lite", "Standard", "Professional"
+  description: string;        // Plan description
+  currency: string;           // "GBP"
+  price: number;             // 50, 400, 1650 (in pounds)
+  period: string;            // "month"
+  minutesIncluded: number;
+  phoneNumbersIncluded: number;
+  features: PlanFeature[];  // List of features with enabled/disabled status
+  isActive?: boolean;        // Marks the "Most Popular" plan
+}
+
+// Legacy Interface (for backward compatibility if needed, but prefer Plan/PlanFeature)
+export interface IPlanFeature {
+  label: string;        // "200 Travel Voice minutes"
+  isEnabled: boolean;   // true/false for this plan
+}
+
 export interface IPlan {
   id: UUID;                    // "8d2dccd5-58b0-4a39-b50f-412a21de6d89"
   name: string;               // "Lite", "Standard", "Professional"

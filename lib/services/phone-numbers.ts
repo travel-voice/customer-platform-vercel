@@ -35,14 +35,39 @@ export const getPhoneNumbers = async (organisationUuid: UUID): Promise<PhoneNumb
 };
 
 /**
- * Generate checkout link for phone number purchase
+ * Search available phone numbers
  */
-export const generateCheckoutLink = async (organisationId: UUID): Promise<string> => {
-  // TODO: Implement Stripe Checkout for Phone Numbers
-  // This would typically call a server action or API route that creates a Stripe Session
-  console.warn('Phone number checkout not yet implemented in new backend');
-  throw new Error('Phone number purchasing is currently unavailable');
-};
+export const searchPhoneNumbers = async (countryCode: string = 'US', areaCode?: string) => {
+    const params = new URLSearchParams({
+        countryCode,
+        limit: '10'
+    });
+    if (areaCode) params.append('areaCode', areaCode);
+
+    const response = await fetch(`/api/phone-numbers/search?${params.toString()}`);
+    if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to search phone numbers');
+    }
+    return response.json();
+}
+
+/**
+ * Buy a phone number
+ */
+export const buyPhoneNumber = async (phoneNumber: string, assistantId?: string) => {
+    const response = await fetch('/api/phone-numbers/buy', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ phoneNumber, assistantId })
+    });
+
+    if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to purchase phone number');
+    }
+    return response.json();
+}
 
 /**
  * Get details of a specific phone number
@@ -82,35 +107,28 @@ export const getPhoneNumberByUuid = async (organisationUuid: UUID, phoneNumberUu
  * Update a phone number to assign it to an assistant or remove assignment (null)
  */
 export const updatePhoneNumber = async (organisationUuid: UUID, phoneNumberUuid: UUID, assistantUuid: UUID | null): Promise<void> => {
-  const supabase = createClient();
-  
-  const { error } = await supabase
-    .from('phone_numbers')
-    .update({ agent_uuid: assistantUuid })
-    .eq('organization_uuid', organisationUuid)
-    .eq('uuid', phoneNumberUuid);
+    const response = await fetch(`/api/phone-numbers/${phoneNumberUuid}`, {
+        method: 'PATCH',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({ assistantId: assistantUuid })
+    });
 
-  if (error) {
-    throw new Error(error.message);
-  }
+    if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to update phone number');
+    }
 };
 
 /**
  * Delete a phone number from an organisation
  */
 export const deletePhoneNumber = async (organisationUuid: UUID, phoneNumberUuid: UUID): Promise<void> => {
-  const supabase = createClient();
-  
-  // Soft delete or hard delete? The original code used DELETE.
-  // Let's use hard delete for now as per the policy, or update status if preferred.
-  // The SQL policy allows DELETE.
-  const { error } = await supabase
-    .from('phone_numbers')
-    .delete()
-    .eq('organization_uuid', organisationUuid)
-    .eq('uuid', phoneNumberUuid);
+    const response = await fetch(`/api/phone-numbers/${phoneNumberUuid}`, {
+        method: 'DELETE',
+    });
 
-  if (error) {
-    throw new Error(error.message);
-  }
+    if (!response.ok) {
+        const error = await response.json();
+        throw new Error(error.error || 'Failed to delete phone number');
+    }
 };

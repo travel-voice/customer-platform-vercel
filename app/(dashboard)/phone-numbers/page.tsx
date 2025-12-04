@@ -7,9 +7,15 @@ import {
   Settings,
   AlertCircle,
   X,
-  CreditCard
+  Search,
+  MapPin,
+  Loader2,
+  Smartphone,
+  Check,
+  Globe
 } from "lucide-react";
 import { useState, useEffect } from "react";
+import { motion, AnimatePresence } from "framer-motion";
 
 import { Alert, AlertDescription } from "@/components/ui/alert";
 import { Badge } from "@/components/ui/badge";
@@ -26,8 +32,9 @@ import {
 } from "@/components/ui/dialog";
 import { Label } from "@/components/ui/label";
 import { Separator } from "@/components/ui/separator";
+import { Input } from "@/components/ui/input";
 import { useAuthStore } from "@/lib/stores/auth-store";
-import { getPhoneNumbers, generateCheckoutLink, deletePhoneNumber, updatePhoneNumber } from "@/lib/services/phone-numbers";
+import { getPhoneNumbers, deletePhoneNumber, updatePhoneNumber, searchPhoneNumbers, buyPhoneNumber } from "@/lib/services/phone-numbers";
 import { PhoneNumberRecord } from "@/lib/types/phone-numbers";
 import { getAssistantDetails, Assistant } from "@/lib/services/assistants";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
@@ -39,7 +46,14 @@ export default function PhoneNumbersPage() {
   const [isModalOpen, setIsModalOpen] = useState(false);
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
-  const [buyLoading, setBuyLoading] = useState(false);
+  
+  // Search & Buy State
+  const [searchCountry, setSearchCountry] = useState("US");
+  const [searchAreaCode, setSearchAreaCode] = useState("");
+  const [searchResults, setSearchResults] = useState<any[]>([]);
+  const [searchLoading, setSearchLoading] = useState(false);
+  const [buyingNumber, setBuyingNumber] = useState<string | null>(null);
+
   const [deleteDialogOpen, setDeleteDialogOpen] = useState(false);
   const [phoneNumberToDelete, setPhoneNumberToDelete] = useState<PhoneNumberRecord | null>(null);
   const [deleteLoading, setDeleteLoading] = useState(false);
@@ -94,30 +108,36 @@ export default function PhoneNumbersPage() {
     fetchAssistants();
   }, [user?.organisation_uuid]);
 
-  const handleBuyNumber = async () => {
-    if (!user) {
-      setError('Please log in to purchase a phone number');
-      return;
-    }
-
-    if (!user?.organisation_uuid) {
-      setError('Organisation not found');
-      return;
-    }
-
-    setBuyLoading(true);
+  const handleSearchNumbers = async () => {
+    setSearchLoading(true);
+    setError(null);
     try {
-      const checkoutUrl = await generateCheckoutLink(user.organisation_uuid);
-      if (checkoutUrl) {
-        window.location.href = checkoutUrl;
-      } else {
-        setError('Invalid checkout URL received');
-      }
-    } catch (error: any) {
-      setError(error.message || 'Failed to generate checkout link');
-      console.error('Checkout error:', error);
+        const data = await searchPhoneNumbers(searchCountry, searchAreaCode || undefined);
+        setSearchResults(data.phoneNumbers || []);
+    } catch (err: any) {
+        setError(err.message);
     } finally {
-      setBuyLoading(false);
+        setSearchLoading(false);
+    }
+  };
+
+  const handleBuyNumber = async (phoneNumber: string) => {
+    if (!user?.organisation_uuid) return;
+
+    setBuyingNumber(phoneNumber);
+    try {
+      const result = await buyPhoneNumber(phoneNumber);
+      // Refresh list
+      const numbers = await getPhoneNumbers(user.organisation_uuid);
+      setPhoneNumbers(numbers);
+      setIsModalOpen(false);
+      setSearchResults([]);
+      // Optional: Show success toast or notification
+    } catch (error: any) {
+      setError(error.message || 'Failed to purchase number');
+      console.error('Purchase error:', error);
+    } finally {
+      setBuyingNumber(null);
     }
   };
 
@@ -196,204 +216,322 @@ export default function PhoneNumbersPage() {
   const clearError = () => setError(null);
 
   return (
-    <div className="container mx-auto px-4 py-6 space-y-6">
-      {/* Header */}
-      <div>
-        <h1 className="text-2xl font-bold">Manage Phone Numbers</h1>
-        <p className="text-muted-foreground">
-          Configure phone numbers for your AI voice agents and call routing
-        </p>
-      </div>
-
-      {/* Error Display */}
-      {error && (
-        <Alert variant="destructive">
-          <AlertCircle className="h-4 w-4" />
-          <AlertDescription className="flex justify-between items-center">
-            {error}
-            <Button variant="ghost" size="sm" onClick={clearError}>
-              <X className="h-3 w-3" />
+    <div className="container max-w-7xl mx-auto px-4 py-8 space-y-8">
+      {/* Professional Header */}
+      <div className="flex flex-col md:flex-row justify-between items-start md:items-center gap-4 border-b pb-6">
+        <div>
+          <h1 className="text-3xl font-bold tracking-tight text-gray-900">Phone Numbers</h1>
+          <p className="text-muted-foreground mt-1 text-lg">
+            Manage your virtual numbers and route calls to AI assistants
+          </p>
+        </div>
+        
+        <Dialog open={isModalOpen} onOpenChange={(open) => {
+            setIsModalOpen(open);
+            if (open) {
+                setError(null);
+                setSearchResults([]);
+                setSearchAreaCode("");
+            }
+        }}>
+            <DialogTrigger asChild>
+            <Button size="lg" className="gap-2 shadow-sm bg-black text-white hover:bg-gray-800 transition-all">
+                <Plus className="h-5 w-5" />
+                Add Phone Number
             </Button>
-          </AlertDescription>
-        </Alert>
-      )}
-
-      <div className="max-w-5xl">
-        {/* Phone Numbers Management Section */}
-        <Card className="w-full">
-          <CardHeader>
-            <CardTitle className="flex items-center gap-2">
-              <Phone className="h-5 w-5" />
-              Phone Numbers
-            </CardTitle>
-            <CardDescription>
-              Add and manage phone numbers for your AI voice agents. Each number can be configured with different settings.
-            </CardDescription>
-          </CardHeader>
-          <CardContent className="space-y-4">
-            {/* Buy Phone Number Button */}
-            <div className="space-y-4">
-              <div className="space-y-2">
-                <Label>Add New Phone Number</Label>
-                <Dialog open={isModalOpen} onOpenChange={(open) => {
-                  setIsModalOpen(open);
-                  if (open) setError(null);
-                }}>
-                  <DialogTrigger asChild>
-                    <Button className="gap-2 w-full sm:w-auto">
-                      <Plus className="h-4 w-4" />
-                      Buy a Number
-                    </Button>
-                  </DialogTrigger>
-                  <DialogContent className="sm:max-w-[400px]">
-                    <DialogHeader>
-                      <DialogTitle>Buy a UK Mobile Number</DialogTitle>
-                      <DialogDescription>
-                        Purchase a UK mobile number for your AI agents to handle inbound and outbound calls.
-                      </DialogDescription>
-                    </DialogHeader>
-                    <div className="py-4">
-                      <div className="p-4 border rounded-lg bg-blue-50">
-                        <div className="flex items-center gap-2 mb-2">
-                          <Phone className="h-4 w-4 text-blue-600" />
-                          <span className="font-medium text-blue-900">UK Mobile Number (+44)</span>
+            </DialogTrigger>
+            <DialogContent className="sm:max-w-[650px] p-0 overflow-hidden rounded-xl gap-0">
+            <DialogHeader className="p-6 pb-4 bg-gray-50/50 border-b">
+                <div className="flex items-center gap-3 mb-1">
+                    <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
+                        <Globe className="h-5 w-5 text-blue-600" />
+                    </div>
+                    <div>
+                        <DialogTitle className="text-xl">Get a New Number</DialogTitle>
+                        <DialogDescription className="text-sm mt-1">
+                        Search and acquire a phone number for your AI agents.
+                        </DialogDescription>
+                    </div>
+                </div>
+            </DialogHeader>
+            
+            <div className="p-6 space-y-6 bg-white">
+                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                    <div className="space-y-2">
+                        <Label className="text-sm font-medium text-gray-700">Country</Label>
+                        <Select value={searchCountry} onValueChange={setSearchCountry}>
+                            <SelectTrigger className="h-11">
+                                <SelectValue />
+                            </SelectTrigger>
+                            <SelectContent>
+                                <SelectItem value="US">🇺🇸 United States</SelectItem>
+                                <SelectItem value="GB">🇬🇧 United Kingdom</SelectItem>
+                                <SelectItem value="CA">🇨🇦 Canada</SelectItem>
+                                <SelectItem value="AU">🇦🇺 Australia</SelectItem>
+                            </SelectContent>
+                        </Select>
+                    </div>
+                    <div className="space-y-2">
+                        <Label className="text-sm font-medium text-gray-700">Area Code</Label>
+                        <div className="relative">
+                            <Input 
+                                className="h-11 pl-9"
+                                placeholder="e.g. 415" 
+                                value={searchAreaCode} 
+                                onChange={(e) => setSearchAreaCode(e.target.value)} 
+                            />
+                            <MapPin className="absolute left-3 top-3.5 h-4 w-4 text-gray-400" />
                         </div>
-                        <p className="text-sm text-blue-700">
-                          Best for SMS and voice calls with your AI agents
-                        </p>
-                      </div>
-                      
-                      <Alert className="mt-4">
-                        <AlertCircle className="h-4 w-4" />
-                        <AlertDescription>
-                          This will redirect you to a secure checkout page. UK mobile numbers cost £4 per month exc VAT.
-                        </AlertDescription>
-                      </Alert>
                     </div>
-                    <DialogFooter>
-                      <Button variant="outline" onClick={() => setIsModalOpen(false)}>
-                        Cancel
-                      </Button>
-                      <Button onClick={handleBuyNumber} className="gap-2" disabled={buyLoading}>
-                        <CreditCard className="h-4 w-4" />
-                        {buyLoading ? 'Processing...' : 'Buy Now'}
-                      </Button>
-                    </DialogFooter>
-                  </DialogContent>
-                </Dialog>
-                <p className="text-xs text-muted-foreground">
-                  Purchase a phone number to start using your AI agents for inbound and outbound calls.
-                </p>
-              </div>
-            </div>
-
-            <Separator />
-
-            {/* Phone Numbers List */}
-            <div className="space-y-3">
-              <div className="flex items-center justify-between">
-                <h3 className="font-medium">Registered Numbers</h3>
-                <Badge variant="secondary">
-                  {loading ? 'Loading...' : `${phoneNumbers.length} numbers`}
-                </Badge>
-              </div>
-
-              {loading ? (
-                <div className="space-y-2">
-                  {[1, 2].map((i) => (
-                    <div key={i} className="flex items-center justify-between p-3 border rounded-lg animate-pulse">
-                      <div className="flex-1">
-                        <div className="h-4 bg-gray-200 rounded mb-2 w-48"></div>
-                        <div className="h-3 bg-gray-200 rounded w-24"></div>
-                      </div>
-                      <div className="flex items-center gap-2">
-                        <div className="h-8 bg-gray-200 rounded w-20"></div>
-                        <div className="h-8 bg-gray-200 rounded w-8"></div>
-                      </div>
-                    </div>
-                  ))}
                 </div>
-              ) : phoneNumbers.length > 0 ? (
-                <div className="space-y-2">
-                  {phoneNumbers.map((phoneNum) => (
-                    <div key={phoneNum.uuid} className="flex items-center justify-between p-4 border rounded-lg hover:bg-gray-50">
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-3 mb-2">
-                          <Phone className="h-4 w-4 text-muted-foreground flex-shrink-0" />
-                          <span className="font-medium text-lg">{phoneNum.phone_number}</span>
-                          <Badge 
-                            variant={phoneNum.assistant_uuid ? 'default' : 'secondary'}
-                            className={phoneNum.assistant_uuid ? 'bg-green-100 text-green-800' : 'bg-yellow-100 text-yellow-800'}
-                          >
-                            {phoneNum.assistant_uuid ? 'active' : 'inactive'}
-                          </Badge>
-                          {phoneNum.assistant_name && (
-                            <span className="text-sm text-muted-foreground">
-                              → {phoneNum.assistant_name}
-                            </span>
-                          )}
+                
+                <Button 
+                    onClick={handleSearchNumbers} 
+                    className="w-full h-11 text-base font-medium" 
+                    disabled={searchLoading}
+                    size="lg"
+                >
+                    {searchLoading ? (
+                        <>
+                            <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                            Searching Available Numbers...
+                        </>
+                    ) : (
+                        <>
+                            <Search className="h-4 w-4 mr-2" />
+                            Find Available Numbers
+                        </>
+                    )}
+                </Button>
+
+                <div className="relative">
+                    <div className="absolute inset-0 flex items-center">
+                        <span className="w-full border-t" />
+                    </div>
+                    <div className="relative flex justify-center text-xs uppercase">
+                        <span className="bg-white px-2 text-muted-foreground">Results</span>
+                    </div>
+                </div>
+
+                <div className="min-h-[200px] max-h-[300px] overflow-y-auto pr-1 custom-scrollbar">
+                    {searchResults.length > 0 ? (
+                        <div className="grid grid-cols-1 gap-3">
+                            {searchResults.map((result, idx) => (
+                                <motion.div 
+                                    initial={{ opacity: 0, y: 10 }}
+                                    animate={{ opacity: 1, y: 0 }}
+                                    transition={{ delay: idx * 0.05 }}
+                                    key={idx} 
+                                    className="flex items-center justify-between p-4 border rounded-xl hover:border-blue-200 hover:bg-blue-50/30 transition-all group"
+                                >
+                                    <div className="flex items-center gap-3">
+                                        <div className="h-8 w-8 rounded-full bg-gray-100 flex items-center justify-center group-hover:bg-white transition-colors">
+                                            <Phone className="h-4 w-4 text-gray-600" />
+                                        </div>
+                                        <div>
+                                            <div className="font-semibold text-lg text-gray-900">{result.phoneNumber}</div>
+                                            <div className="text-xs text-muted-foreground flex items-center gap-1">
+                                                <MapPin className="h-3 w-3" />
+                                                {result.locality}, {result.region}
+                                            </div>
+                                        </div>
+                                    </div>
+                                    <Button 
+                                        size="sm" 
+                                        onClick={() => handleBuyNumber(result.phoneNumber)}
+                                        disabled={buyingNumber !== null}
+                                        className={buyingNumber === result.phoneNumber ? "w-24" : "w-20"}
+                                    >
+                                        {buyingNumber === result.phoneNumber ? (
+                                            <Loader2 className="h-4 w-4 animate-spin" />
+                                        ) : (
+                                            "Select"
+                                        )}
+                                    </Button>
+                                </motion.div>
+                            ))}
                         </div>
-                      </div>
-                      <div className="flex items-center gap-2 ml-4">
-                        <Button
-                          variant="outline"
-                          size="sm"
-                          onClick={() => openRoutingDialog(phoneNum)}
-                          className="gap-2"
-                        >
-                          <Settings className="h-4 w-4" />
-                          Setup
-                        </Button>
-                        <Button
-                          variant="ghost"
-                          size="sm"
-                          onClick={() => openDeleteDialog(phoneNum)}
-                          className="text-red-600 hover:text-red-700 hover:bg-red-50"
-                        >
-                          <Trash2 className="h-4 w-4" />
-                        </Button>
-                      </div>
-                    </div>
-                  ))}
+                    ) : (
+                        !searchLoading && (
+                            <div className="flex flex-col items-center justify-center h-[200px] text-center space-y-3 border-2 border-dashed rounded-xl bg-gray-50/50">
+                                <div className="h-12 w-12 rounded-full bg-gray-100 flex items-center justify-center">
+                                    <Search className="h-6 w-6 text-gray-400" />
+                                </div>
+                                <div className="space-y-1">
+                                    <p className="text-sm font-medium text-gray-900">No numbers found yet</p>
+                                    <p className="text-xs text-muted-foreground max-w-[200px] mx-auto">
+                                        Enter an area code and click search to find available phone numbers.
+                                    </p>
+                                </div>
+                            </div>
+                        )
+                    )}
                 </div>
-              ) : (
-                <div className="text-center py-6 border border-dashed rounded-lg">
-                  <Phone className="h-8 w-8 mx-auto mb-2 text-muted-foreground" />
-                  <h3 className="font-medium mb-1">No phone numbers configured</h3>
-                  <p className="text-sm text-muted-foreground">
-                    Add your first phone number to start receiving calls from your AI agents
-                  </p>
-                </div>
-              )}
             </div>
-          </CardContent>
-        </Card>
+            </DialogContent>
+        </Dialog>
       </div>
+
+      {/* Error Alert */}
+      <AnimatePresence>
+        {error && (
+            <motion.div
+                initial={{ opacity: 0, height: 0 }}
+                animate={{ opacity: 1, height: 'auto' }}
+                exit={{ opacity: 0, height: 0 }}
+            >
+                <Alert variant="destructive" className="border-red-200 bg-red-50 text-red-900">
+                    <AlertCircle className="h-4 w-4" />
+                    <AlertDescription className="flex justify-between items-center ml-2">
+                        {error}
+                        <Button variant="ghost" size="sm" onClick={clearError} className="h-6 w-6 p-0 hover:bg-red-100 rounded-full">
+                        <X className="h-3 w-3" />
+                        </Button>
+                    </AlertDescription>
+                </Alert>
+            </motion.div>
+        )}
+      </AnimatePresence>
+
+      {/* Main Content */}
+      <Card className="border-none shadow-sm bg-white overflow-hidden">
+        <CardHeader className="border-b bg-gray-50/40 pb-4">
+          <div className="flex items-center justify-between">
+            <div>
+                <CardTitle className="text-lg font-semibold flex items-center gap-2">
+                <Smartphone className="h-5 w-5 text-gray-500" />
+                Your Numbers
+                </CardTitle>
+                <CardDescription className="mt-1">
+                    All phone numbers currently active in your organization.
+                </CardDescription>
+            </div>
+            <Badge variant="outline" className="bg-white px-3 py-1">
+                {loading ? '...' : `${phoneNumbers.length} Active`}
+            </Badge>
+          </div>
+        </CardHeader>
+        <CardContent className="p-6">
+          {loading ? (
+            <div className="grid grid-cols-1 gap-4">
+              {[1, 2, 3].map((i) => (
+                <div key={i} className="flex items-center justify-between p-4 border rounded-xl bg-white animate-pulse">
+                  <div className="flex-1 space-y-2">
+                    <div className="h-5 bg-gray-100 rounded w-48"></div>
+                    <div className="h-4 bg-gray-100 rounded w-32"></div>
+                  </div>
+                  <div className="h-10 bg-gray-100 rounded w-24"></div>
+                </div>
+              ))}
+            </div>
+          ) : phoneNumbers.length > 0 ? (
+            <div className="grid grid-cols-1 gap-4">
+              {phoneNumbers.map((phoneNum) => (
+                <motion.div 
+                    initial={{ opacity: 0 }}
+                    animate={{ opacity: 1 }}
+                    key={phoneNum.uuid} 
+                    className="flex flex-col md:flex-row items-start md:items-center justify-between p-5 border rounded-xl hover:shadow-md transition-all bg-white group gap-4"
+                >
+                  <div className="flex items-start gap-4">
+                    <div className={`h-12 w-12 rounded-full flex items-center justify-center flex-shrink-0 ${
+                        phoneNum.assistant_uuid ? 'bg-green-100' : 'bg-gray-100'
+                    }`}>
+                        <Phone className={`h-6 w-6 ${
+                            phoneNum.assistant_uuid ? 'text-green-600' : 'text-gray-500'
+                        }`} />
+                    </div>
+                    <div className="space-y-1">
+                        <div className="flex items-center gap-3">
+                            <h3 className="font-semibold text-xl tracking-tight text-gray-900">{phoneNum.phone_number}</h3>
+                            <Badge 
+                                variant={phoneNum.assistant_uuid ? 'default' : 'secondary'}
+                                className={phoneNum.assistant_uuid 
+                                    ? 'bg-green-100 text-green-700 hover:bg-green-200 border-green-200' 
+                                    : 'bg-gray-100 text-gray-600 hover:bg-gray-200 border-gray-200'}
+                            >
+                                {phoneNum.assistant_uuid ? 'Active' : 'Unassigned'}
+                            </Badge>
+                        </div>
+                        <div className="flex items-center gap-2 text-sm text-muted-foreground">
+                            {phoneNum.assistant_name ? (
+                                <>
+                                    <span className="flex items-center gap-1.5">
+                                        Connected to <span className="font-medium text-gray-900">{phoneNum.assistant_name}</span>
+                                    </span>
+                                </>
+                            ) : (
+                                <span className="text-yellow-600 flex items-center gap-1">
+                                    <AlertCircle className="h-3 w-3" /> No assistant assigned
+                                </span>
+                            )}
+                        </div>
+                    </div>
+                  </div>
+
+                  <div className="flex items-center gap-2 w-full md:w-auto pl-16 md:pl-0">
+                    <Button
+                      variant="outline"
+                      size="sm"
+                      onClick={() => openRoutingDialog(phoneNum)}
+                      className="gap-2 border-gray-200 hover:bg-gray-50 hover:text-gray-900"
+                    >
+                      <Settings className="h-4 w-4" />
+                      Configure
+                    </Button>
+                    <Button
+                      variant="ghost"
+                      size="sm"
+                      onClick={() => openDeleteDialog(phoneNum)}
+                      className="text-gray-400 hover:text-red-600 hover:bg-red-50"
+                    >
+                      <Trash2 className="h-4 w-4" />
+                    </Button>
+                  </div>
+                </motion.div>
+              ))}
+            </div>
+          ) : (
+            <div className="flex flex-col items-center justify-center py-16 text-center bg-gray-50/50 rounded-xl border-2 border-dashed border-gray-200">
+              <div className="h-16 w-16 rounded-full bg-white shadow-sm flex items-center justify-center mb-4">
+                <Phone className="h-8 w-8 text-gray-400" />
+              </div>
+              <h3 className="text-lg font-semibold text-gray-900">No phone numbers yet</h3>
+              <p className="text-sm text-muted-foreground max-w-sm mt-2 mb-6">
+                Get started by adding a dedicated phone number for your AI assistants to handle inbound and outbound calls.
+              </p>
+              <Button onClick={() => setIsModalOpen(true)} className="gap-2">
+                <Plus className="h-4 w-4" />
+                Get Your First Number
+              </Button>
+            </div>
+          )}
+        </CardContent>
+      </Card>
 
       {/* Delete Confirmation Dialog */}
       <Dialog open={deleteDialogOpen} onOpenChange={setDeleteDialogOpen}>
-        <DialogContent className="sm:max-w-[425px]">
-          <DialogHeader>
-            <DialogTitle>Delete Phone Number</DialogTitle>
-            <DialogDescription>
-              Are you sure you want to delete this phone number? This action cannot be undone.
-            </DialogDescription>
-          </DialogHeader>
-          {phoneNumberToDelete && (
-            <div className="py-4">
-              <div className="flex items-center gap-2 p-3 border rounded-lg bg-red-50">
-                <Phone className="h-4 w-4 text-red-600" />
-                <span className="font-medium text-red-900">{phoneNumberToDelete.phone_number}</span>
-              </div>
-              <Alert className="mt-4">
-                <AlertCircle className="h-4 w-4" />
-                <AlertDescription>
-                  This will cancel the associated subscription and release the phone number from your account.
-                </AlertDescription>
-              </Alert>
+        <DialogContent className="sm:max-w-[425px] gap-0 p-0 overflow-hidden rounded-xl">
+          <div className="p-6 pb-4">
+            <div className="h-12 w-12 rounded-full bg-red-100 flex items-center justify-center mb-4">
+                <Trash2 className="h-6 w-6 text-red-600" />
             </div>
-          )}
-          <DialogFooter>
+            <DialogTitle className="text-xl mb-2">Release Number?</DialogTitle>
+            <DialogDescription className="text-base text-gray-600">
+              Are you sure you want to release <span className="font-semibold text-gray-900">{phoneNumberToDelete?.phone_number}</span>?
+            </DialogDescription>
+          </div>
+          
+          <div className="px-6 pb-6">
+            <Alert className="bg-red-50 border-red-100 text-red-800">
+                <AlertCircle className="h-4 w-4 text-red-600" />
+                <AlertDescription className="text-sm ml-2">
+                    This action cannot be undone. The number will be released immediately and any associated configuration will be lost.
+                </AlertDescription>
+            </Alert>
+          </div>
+
+          <div className="bg-gray-50 p-4 flex justify-end gap-3">
             <Button 
               variant="outline" 
               onClick={() => {
@@ -401,6 +539,7 @@ export default function PhoneNumbersPage() {
                 setPhoneNumberToDelete(null);
               }}
               disabled={deleteLoading}
+              className="bg-white"
             >
               Cancel
             </Button>
@@ -408,59 +547,81 @@ export default function PhoneNumbersPage() {
               variant="destructive" 
               onClick={handleDeleteNumber}
               disabled={deleteLoading}
-              className="gap-2"
+              className="gap-2 bg-red-600 hover:bg-red-700"
             >
-              <Trash2 className="h-4 w-4" />
-              {deleteLoading ? 'Deleting...' : 'Delete'}
+              {deleteLoading ? (
+                  <>
+                    <Loader2 className="h-4 w-4 animate-spin" />
+                    Releasing...
+                  </>
+              ) : (
+                  <>
+                    Delete Number
+                  </>
+              )}
             </Button>
-          </DialogFooter>
+          </div>
         </DialogContent>
       </Dialog>
 
       {/* Routing Setup Dialog */}
       <Dialog open={routingDialogOpen} onOpenChange={setRoutingDialogOpen}>
-        <DialogContent className="sm:max-w-[500px]">
-          <DialogHeader>
-            <DialogTitle>Setup Inbound Call Routing</DialogTitle>
+        <DialogContent className="sm:max-w-[500px] p-0 overflow-hidden rounded-xl gap-0">
+          <DialogHeader className="p-6 pb-2 bg-white border-b">
+            <DialogTitle className="text-xl flex items-center gap-2">
+                <Settings className="h-5 w-5 text-gray-500" />
+                Call Routing
+            </DialogTitle>
             <DialogDescription>
-              Configure which AI agent will handle incoming calls to this phone number.
+              Configure incoming call handling for this number.
             </DialogDescription>
           </DialogHeader>
+          
           {phoneNumberForRouting && (
-            <div className="py-4 space-y-4">
-              <div className="p-3 border rounded-lg bg-blue-50">
-                <div className="flex items-center gap-2 mb-1">
-                  <Phone className="h-4 w-4 text-blue-600" />
-                  <span className="font-medium text-blue-900">{phoneNumberForRouting.phone_number}</span>
+            <div className="p-6 space-y-6 bg-gray-50/30">
+              <div className="flex items-center justify-between p-4 bg-white border rounded-lg shadow-sm">
+                <div>
+                    <span className="text-xs uppercase font-semibold text-gray-400 tracking-wider">Selected Number</span>
+                    <div className="text-lg font-bold text-gray-900 font-mono mt-0.5">{phoneNumberForRouting.phone_number}</div>
                 </div>
-                <p className="text-sm text-blue-700">
-                  All incoming calls to this number will be routed to the selected agent
-                </p>
+                <div className="h-10 w-10 bg-blue-50 rounded-full flex items-center justify-center">
+                    <Phone className="h-5 w-5 text-blue-600" />
+                </div>
               </div>
               
-              <div className="space-y-2">
-                <Label htmlFor="agent-select">Select AI Agent</Label>
+              <div className="space-y-3">
+                <Label htmlFor="agent-select" className="text-sm font-medium text-gray-700">
+                    Route calls to
+                </Label>
                 <Select value={selectedAssistant} onValueChange={setSelectedAssistant}>
-                  <SelectTrigger>
-                    <SelectValue placeholder="Choose an agent" />
+                  <SelectTrigger className="h-12 bg-white border-gray-200">
+                    <SelectValue placeholder="Select an assistant" />
                   </SelectTrigger>
                   <SelectContent>
-                    <SelectItem value="none">
-                      <div className="flex items-center gap-2">
-                        <div className="h-6 w-6 rounded-full bg-gray-200 flex items-center justify-center">
-                          <X className="h-3 w-3 text-gray-500" />
+                    <SelectItem value="none" className="py-3">
+                      <div className="flex items-center gap-3">
+                        <div className="h-8 w-8 rounded-full bg-gray-100 flex items-center justify-center border border-gray-200">
+                          <X className="h-4 w-4 text-gray-500" />
                         </div>
-                        <span>No agent (disable routing)</span>
+                        <div className="flex flex-col">
+                            <span className="font-medium">No Agent</span>
+                            <span className="text-xs text-muted-foreground">Calls will not be answered</span>
+                        </div>
                       </div>
                     </SelectItem>
                     {Array.isArray(assistants) && assistants.map((assistant) => (
-                      <SelectItem key={assistant.assistant_uuid} value={assistant.assistant_uuid}>
-                        <div className="flex items-center gap-2">
-                          <Avatar className="h-6 w-6">
+                      <SelectItem key={assistant.assistant_uuid} value={assistant.assistant_uuid} className="py-3">
+                        <div className="flex items-center gap-3">
+                          <Avatar className="h-8 w-8 border border-gray-200">
                             <AvatarImage src={assistant.assistant_avatar_url} alt={assistant.assistant_name} />
-                            <AvatarFallback>{assistant.assistant_name.slice(0, 2).toUpperCase()}</AvatarFallback>
+                            <AvatarFallback className="bg-blue-50 text-blue-600 text-xs">
+                                {assistant.assistant_name.slice(0, 2).toUpperCase()}
+                            </AvatarFallback>
                           </Avatar>
-                          <span>{assistant.assistant_name}</span>
+                          <div className="flex flex-col">
+                              <span className="font-medium">{assistant.assistant_name}</span>
+                              <span className="text-xs text-muted-foreground">AI Assistant</span>
+                          </div>
                         </div>
                       </SelectItem>
                     ))}
@@ -468,26 +629,34 @@ export default function PhoneNumbersPage() {
                 </Select>
               </div>
 
-              {selectedAssistant && selectedAssistant !== "none" && (
-                <Alert>
-                  <AlertCircle className="h-4 w-4" />
-                  <AlertDescription>
-                    All calls to {phoneNumberForRouting.phone_number} will be automatically answered by your selected agent.
-                  </AlertDescription>
-                </Alert>
-              )}
-
-              {(!selectedAssistant || selectedAssistant === "none") && (
-                <Alert>
-                  <AlertCircle className="h-4 w-4" />
-                  <AlertDescription>
-                    Without an assigned agent, this phone number will be inactive and won't answer calls.
-                  </AlertDescription>
-                </Alert>
-              )}
+              <div className="pt-2">
+                {selectedAssistant && selectedAssistant !== "none" ? (
+                    <div className="bg-green-50 border border-green-100 rounded-lg p-4 flex items-start gap-3">
+                        <div className="h-5 w-5 rounded-full bg-green-100 flex items-center justify-center flex-shrink-0 mt-0.5">
+                            <Check className="h-3 w-3 text-green-600" />
+                        </div>
+                        <div>
+                            <p className="text-sm font-medium text-green-900">Active Routing</p>
+                            <p className="text-xs text-green-700 mt-0.5">
+                                Calls will be automatically answered by your selected AI assistant.
+                            </p>
+                        </div>
+                    </div>
+                ) : (
+                    <div className="bg-yellow-50 border border-yellow-100 rounded-lg p-4 flex items-start gap-3">
+                        <AlertCircle className="h-5 w-5 text-yellow-600 flex-shrink-0 mt-0.5" />
+                        <div>
+                            <p className="text-sm font-medium text-yellow-900">Inactive Number</p>
+                            <p className="text-xs text-yellow-700 mt-0.5">
+                                This number is currently not routed to any agent and will not pick up calls.
+                            </p>
+                        </div>
+                    </div>
+                )}
+              </div>
             </div>
           )}
-          <DialogFooter>
+          <div className="bg-white p-4 border-t flex justify-end gap-3">
             <Button 
               variant="outline" 
               onClick={() => {
@@ -502,12 +671,15 @@ export default function PhoneNumbersPage() {
             <Button 
               onClick={handleSaveRouting}
               disabled={routingLoading}
-              className="gap-2"
+              className="gap-2 min-w-[100px]"
             >
-              <Settings className="h-4 w-4" />
-              {routingLoading ? 'Saving...' : 'Save Configuration'}
+              {routingLoading ? (
+                  <Loader2 className="h-4 w-4 animate-spin" />
+              ) : (
+                  <>Save Changes</>
+              )}
             </Button>
-          </DialogFooter>
+          </div>
         </DialogContent>
       </Dialog>
     </div>
