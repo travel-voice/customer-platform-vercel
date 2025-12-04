@@ -179,6 +179,45 @@ interface UpdatePhoneNumberParams {
   assistantId?: string | null;
 }
 
+interface OutboundCallParams {
+  assistantId: string;
+  phoneNumberId: string;
+  customer: {
+    number: string;
+    name?: string;
+    extension?: string;
+  };
+  assistantOverrides?: {
+    variableValues?: Record<string, string | number | boolean>;
+    firstMessage?: string;
+    recordingEnabled?: boolean;
+  };
+}
+
+interface VapiCall {
+  id: string;
+  orgId: string;
+  type: 'inbound' | 'outbound' | 'web';
+  assistantId?: string;
+  phoneNumberId?: string;
+  customer?: {
+    number?: string;
+    name?: string;
+  };
+  status: string;
+  startedAt?: string;
+  endedAt?: string;
+  cost?: number;
+  costBreakdown?: Record<string, any>;
+  messages?: Array<any>;
+  transcript?: string;
+  recordingUrl?: string;
+  summary?: string;
+  analysis?: Record<string, any>;
+  createdAt: string;
+  updatedAt: string;
+}
+
 class VapiClient {
   private apiKey: string;
 
@@ -481,6 +520,51 @@ class VapiClient {
       method: 'DELETE',
     });
   }
+
+  // Outbound Call Methods
+
+  /**
+   * Create an outbound phone call
+   * 
+   * @param params Call parameters including assistant, phone number, customer, and variables
+   * @returns Call object with ID and status
+   */
+  async createOutboundCall(params: OutboundCallParams): Promise<VapiCall> {
+    return this.request<VapiCall>('/call', {
+      method: 'POST',
+      body: JSON.stringify(params),
+    });
+  }
+
+  /**
+   * Get call details by ID
+   */
+  async getCall(callId: string): Promise<VapiCall> {
+    return this.request<VapiCall>(`/call/${callId}`, {
+      method: 'GET',
+    });
+  }
+
+  /**
+   * List calls with optional filters
+   */
+  async listCalls(params?: {
+    assistantId?: string;
+    phoneNumberId?: string;
+    limit?: number;
+  }): Promise<VapiCall[]> {
+    const queryParams = new URLSearchParams();
+    if (params?.assistantId) queryParams.append('assistantId', params.assistantId);
+    if (params?.phoneNumberId) queryParams.append('phoneNumberId', params.phoneNumberId);
+    if (params?.limit) queryParams.append('limit', params.limit.toString());
+
+    const query = queryParams.toString();
+    const endpoint = query ? `/call?${query}` : '/call';
+
+    return this.request<VapiCall[]>(endpoint, {
+      method: 'GET',
+    });
+  }
 }
 
 // Export a singleton instance
@@ -500,5 +584,7 @@ export type {
   CreateToolParams,
   VapiPhoneNumber,
   ImportTwilioNumberParams,
-  UpdatePhoneNumberParams
+  UpdatePhoneNumberParams,
+  OutboundCallParams,
+  VapiCall
 };

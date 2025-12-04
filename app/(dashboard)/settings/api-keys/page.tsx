@@ -15,6 +15,9 @@ import {
   Shield,
   Trash2,
   X,
+  Phone,
+  Code,
+  BookOpen,
 } from "lucide-react";
 import { useEffect, useState } from "react";
 import { useForm } from "react-hook-form";
@@ -61,6 +64,7 @@ import {
 import { Skeleton } from "@/components/ui/skeleton";
 import { Textarea } from "@/components/ui/textarea";
 import { useAuthStore } from "@/lib/stores/auth-store";
+import { Tabs, TabsContent, TabsList, TabsTrigger } from "@/components/ui/tabs";
 
 const createKeySchema = z.object({
   name: z.string().min(1, "Name is required").max(100, "Name is too long"),
@@ -90,7 +94,7 @@ const SCOPE_PRESETS = {
   full: { label: "Full Access", scopes: ["*"], description: "Complete access to all resources" },
   readonly: { label: "Read Only", scopes: ["agents:read", "calls:read", "org:read"], description: "View agents, calls, and organization info" },
   agents: { label: "Agents Only", scopes: ["agents:read", "agents:write"], description: "Manage agents" },
-  calls: { label: "Calls Only", scopes: ["calls:read"], description: "View call logs and transcripts" },
+  calls: { label: "Calls Only", scopes: ["calls:read", "calls:write"], description: "View call logs and make outbound calls" },
   widget: { label: "Widget Integration", scopes: ["agents:read", "widget:config"], description: "Configure widgets on your website" },
 };
 
@@ -113,6 +117,7 @@ export default function ApiKeysPage() {
   const [keyToDelete, setKeyToDelete] = useState<ApiKey | null>(null);
   const [isDeleting, setIsDeleting] = useState(false);
   const [copiedKey, setCopiedKey] = useState(false);
+  const [copiedCode, setCopiedCode] = useState<string | null>(null);
   const [showNewKey, setShowNewKey] = useState(false);
 
   const form = useForm<CreateKeyForm>({
@@ -234,11 +239,16 @@ export default function ApiKeysPage() {
     }
   };
 
-  const copyToClipboard = async (text: string) => {
+  const copyToClipboard = async (text: string, id?: string) => {
     try {
       await navigator.clipboard.writeText(text);
-      setCopiedKey(true);
-      setTimeout(() => setCopiedKey(false), 2000);
+      if (id) {
+        setCopiedCode(id);
+        setTimeout(() => setCopiedCode(null), 2000);
+      } else {
+        setCopiedKey(true);
+        setTimeout(() => setCopiedKey(false), 2000);
+      }
     } catch (err) {
       console.error("Failed to copy:", err);
     }
@@ -340,6 +350,251 @@ export default function ApiKeysPage() {
           Keep them secure and never share them publicly. Keys are shown only once at creation.
         </AlertDescription>
       </Alert>
+
+      {/* API Documentation */}
+      <Card className="border-blue-200 bg-blue-50/30">
+        <CardHeader>
+          <CardTitle className="flex items-center gap-2 text-blue-900">
+            <BookOpen className="h-5 w-5" />
+            API Documentation
+          </CardTitle>
+          <CardDescription>
+            Learn how to use the API to make outbound calls with your AI assistants
+          </CardDescription>
+        </CardHeader>
+        <CardContent>
+          <Tabs defaultValue="outbound" className="w-full">
+            <TabsList className="grid w-full grid-cols-3">
+              <TabsTrigger value="outbound">Outbound Calls</TabsTrigger>
+              <TabsTrigger value="auth">Authentication</TabsTrigger>
+              <TabsTrigger value="variables">Variables</TabsTrigger>
+            </TabsList>
+
+            <TabsContent value="outbound" className="space-y-4 mt-4">
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <Phone className="h-4 w-4 text-blue-600" />
+                  <h3 className="font-semibold text-lg">Make an Outbound Call</h3>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  Initiate outbound phone calls programmatically using your AI assistants.
+                </p>
+              </div>
+
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <Label className="text-sm font-medium">Endpoint</Label>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => copyToClipboard("POST /api/calls/outbound", "endpoint")}
+                  >
+                    {copiedCode === "endpoint" ? (
+                      <Check className="h-3 w-3 text-green-600" />
+                    ) : (
+                      <Copy className="h-3 w-3" />
+                    )}
+                  </Button>
+                </div>
+                <div className="bg-slate-900 rounded-lg p-4">
+                  <code className="text-sm text-green-400 font-mono">
+                    POST /api/calls/outbound
+                  </code>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <Label className="text-sm font-medium">Request Body</Label>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => copyToClipboard(`{
+  "assistantId": "your-assistant-uuid",
+  "phoneNumberId": "your-phone-number-uuid",
+  "customer": {
+    "number": "+11231231234",
+    "name": "John Doe"
+  },
+  "variables": {
+    "name": "John",
+    "appointment_date": "January 15th"
+  }
+}`, "request-body")}
+                  >
+                    {copiedCode === "request-body" ? (
+                      <Check className="h-3 w-3 text-green-600" />
+                    ) : (
+                      <Copy className="h-3 w-3" />
+                    )}
+                  </Button>
+                </div>
+                <div className="bg-slate-900 rounded-lg p-4 overflow-x-auto">
+                  <pre className="text-xs text-green-400 font-mono">
+{`{
+  "assistantId": "your-assistant-uuid",
+  "phoneNumberId": "your-phone-number-uuid",
+  "customer": {
+    "number": "+11231231234",
+    "name": "John Doe"
+  },
+  "variables": {
+    "name": "John",
+    "appointment_date": "January 15th"
+  }
+}`}
+                  </pre>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <div className="flex items-center justify-between">
+                  <Label className="text-sm font-medium">Example (cURL)</Label>
+                  <Button
+                    variant="ghost"
+                    size="sm"
+                    onClick={() => copyToClipboard(`curl -X POST https://your-domain.com/api/calls/outbound \\
+  -H "Authorization: Bearer YOUR_API_KEY" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "assistantId": "uuid-here",
+    "phoneNumberId": "uuid-here",
+    "customer": {
+      "number": "+11231231234",
+      "name": "John Doe"
+    },
+    "variables": {
+      "name": "John"
+    }
+  }'`, "curl-example")}
+                  >
+                    {copiedCode === "curl-example" ? (
+                      <Check className="h-3 w-3 text-green-600" />
+                    ) : (
+                      <Copy className="h-3 w-3" />
+                    )}
+                  </Button>
+                </div>
+                <div className="bg-slate-900 rounded-lg p-4 overflow-x-auto">
+                  <pre className="text-xs text-blue-300 font-mono whitespace-pre">
+{`curl -X POST https://your-domain.com/api/calls/outbound \\
+  -H "Authorization: Bearer YOUR_API_KEY" \\
+  -H "Content-Type: application/json" \\
+  -d '{
+    "assistantId": "uuid-here",
+    "phoneNumberId": "uuid-here",
+    "customer": {
+      "number": "+11231231234",
+      "name": "John Doe"
+    },
+    "variables": {
+      "name": "John"
+    }
+  }'`}
+                  </pre>
+                </div>
+              </div>
+
+              <Alert className="bg-blue-50 border-blue-200">
+                <AlertCircle className="h-4 w-4 text-blue-600" />
+                <AlertDescription className="text-sm text-blue-800">
+                  <strong>Required Scope:</strong> Your API key must have <code className="bg-blue-100 px-1 py-0.5 rounded">calls:write</code> permission.
+                </AlertDescription>
+              </Alert>
+            </TabsContent>
+
+            <TabsContent value="auth" className="space-y-4 mt-4">
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <Shield className="h-4 w-4 text-blue-600" />
+                  <h3 className="font-semibold text-lg">Authentication</h3>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  All API requests must be authenticated using an API key.
+                </p>
+              </div>
+
+              <div className="space-y-3">
+                <Label className="text-sm font-medium">Method 1: Bearer Token (Recommended)</Label>
+                <div className="bg-slate-900 rounded-lg p-4">
+                  <code className="text-sm text-green-400 font-mono">
+                    Authorization: Bearer YOUR_API_KEY
+                  </code>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <Label className="text-sm font-medium">Method 2: X-API-Key Header</Label>
+                <div className="bg-slate-900 rounded-lg p-4">
+                  <code className="text-sm text-green-400 font-mono">
+                    X-API-Key: YOUR_API_KEY
+                  </code>
+                </div>
+              </div>
+
+              <Alert>
+                <AlertCircle className="h-4 w-4" />
+                <AlertDescription className="text-sm">
+                  API keys start with <code className="bg-slate-100 px-1 py-0.5 rounded font-mono">tvsk_</code> prefix.
+                </AlertDescription>
+              </Alert>
+            </TabsContent>
+
+            <TabsContent value="variables" className="space-y-4 mt-4">
+              <div className="space-y-3">
+                <div className="flex items-center gap-2">
+                  <Code className="h-4 w-4 text-blue-600" />
+                  <h3 className="font-semibold text-lg">Dynamic Variables</h3>
+                </div>
+                <p className="text-sm text-muted-foreground">
+                  Pass custom data to personalize each call. Variables can be used in your assistant&apos;s prompts.
+                </p>
+              </div>
+
+              <div className="space-y-3">
+                <Label className="text-sm font-medium">Step 1: Add Variables to Your Prompt</Label>
+                <div className="bg-slate-900 rounded-lg p-4">
+                  <pre className="text-xs text-green-400 font-mono">
+{`Hello {{name}}! 
+
+I'm calling to remind you about your 
+{{appointment_type}} on {{appointment_date}} 
+at {{appointment_time}}.`}
+                  </pre>
+                </div>
+              </div>
+
+              <div className="space-y-3">
+                <Label className="text-sm font-medium">Step 2: Pass Values in API Call</Label>
+                <div className="bg-slate-900 rounded-lg p-4">
+                  <pre className="text-xs text-blue-300 font-mono">
+{`{
+  "assistantId": "uuid-here",
+  "phoneNumberId": "uuid-here",
+  "customer": {
+    "number": "+11231231234"
+  },
+  "variables": {
+    "name": "Sarah",
+    "appointment_type": "dental checkup",
+    "appointment_date": "January 15th",
+    "appointment_time": "2:00 PM"
+  }
+}`}
+                  </pre>
+                </div>
+              </div>
+
+              <Alert className="bg-green-50 border-green-200">
+                <Check className="h-4 w-4 text-green-600" />
+                <AlertDescription className="text-sm text-green-800">
+                  <strong>Built-in Variables:</strong> Vapi automatically provides <code className="bg-green-100 px-1 py-0.5 rounded">{`{{now}}`}</code>, <code className="bg-green-100 px-1 py-0.5 rounded">{`{{date}}`}</code>, and <code className="bg-green-100 px-1 py-0.5 rounded">{`{{time}}`}</code>.
+                </AlertDescription>
+              </Alert>
+            </TabsContent>
+          </Tabs>
+        </CardContent>
+      </Card>
 
       {/* API Keys List */}
       <Card>
@@ -610,7 +865,7 @@ export default function ApiKeysPage() {
               <p className="font-medium mb-1">Usage:</p>
               <code className="block p-2 bg-slate-100 rounded text-xs">
                 curl -H &quot;Authorization: Bearer {showNewKey ? newKeyData?.rawKey?.slice(0, 20) : "tvsk_xxx"}...&quot; \<br />
-                &nbsp;&nbsp;https://your-domain.com/api/agents
+                &nbsp;&nbsp;https://your-domain.com/api/calls/outbound
               </code>
             </div>
           </div>
@@ -662,4 +917,3 @@ export default function ApiKeysPage() {
     </div>
   );
 }
-
