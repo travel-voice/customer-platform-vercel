@@ -478,7 +478,6 @@ export default function AgentDetailsPage() {
   // Handle test webhook
   const handleTestWebhook = async (e: React.MouseEvent) => {
     e.preventDefault();
-    if (!user?.organisation_uuid || !agentUuid) return;
     
     const url = advancedSettingsForm.getValues("customWebhookUrl");
     if (!url) {
@@ -488,15 +487,12 @@ export default function AgentDetailsPage() {
 
     setIsTestingWebhook(true);
     try {
-      // First save the URL if it's dirty
-      if (advancedSettingsForm.formState.dirtyFields.customWebhookUrl) {
-        await updateAgent(user.organisation_uuid, agentUuid, {
-          custom_webhook_url: url
-        }, false);
-      }
-
       const response = await fetch(`/api/agents/${agentUuid}/test-webhook`, {
         method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+        },
+        body: JSON.stringify({ webhookUrl: url }),
       });
       
       const data = await response.json();
