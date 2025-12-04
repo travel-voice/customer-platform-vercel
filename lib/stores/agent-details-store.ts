@@ -80,10 +80,12 @@ export const useAgentDetailsStore = create<AgentDetailsStore>((set, get) => ({
         organisation_id: 1,
         retrieval_augmented_generation_uuid: '',
         system_prompt: agent.system_prompt || '',
-        custom_webhook_url: agent.custom_webhook_url,
+        custom_webhook_url: agent.custom_webhook_url || '',
         // Map advanced config
         ...agent.advanced_config
       };
+
+      console.log('Agent details loaded from API:', { custom_webhook_url: agent.custom_webhook_url });
 
       set({
         agentDetail,

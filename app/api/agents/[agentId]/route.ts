@@ -97,6 +97,7 @@ export async function GET(
     // which does NOT include the HIDDEN_SYSTEM_PROMPT_SUFFIX.
     // This keeps it hidden from the user as requested.
 
+    console.log('Returning agent with custom_webhook_url:', agent.custom_webhook_url);
     return NextResponse.json({ agent });
   } catch (error: any) {
     console.error('Get agent error:', error);

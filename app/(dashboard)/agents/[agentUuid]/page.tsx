@@ -338,6 +338,7 @@ export default function AgentDetailsPage() {
         beepMaxAwaitSeconds: agentDetail.beepMaxAwaitSeconds || 10,
         backgroundSound: agentDetail.backgroundSound || "office",
         notificationEmails: agentDetail.notificationEmails || [],
+        customWebhookUrl: agentDetail.custom_webhook_url || "",
       });
     }
   }, [agentDetail, contentForm, voiceForm, advancedSettingsForm]);
