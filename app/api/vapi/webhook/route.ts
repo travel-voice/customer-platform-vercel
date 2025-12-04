@@ -157,7 +157,7 @@ export async function POST(request: NextRequest) {
 
         // Fire and forget (mostly), but catch errors
         resend.emails.send({
-          from: 'Travel Voice AI <notifications@resend.dev>', // You should update this to your verified domain
+          from: 'Travel Voice AI <notifications@travelvoice.co.uk>',
           to: notificationEmails,
           subject: `Call Report: ${agent.name} - ${new Date().toLocaleString()}`,
           html: emailHtml,
