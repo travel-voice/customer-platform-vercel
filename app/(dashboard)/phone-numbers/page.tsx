@@ -12,7 +12,8 @@ import {
   Loader2,
   Smartphone,
   Check,
-  Globe
+  Globe,
+  CreditCard
 } from "lucide-react";
 import { useState, useEffect } from "react";
 import { motion, AnimatePresence } from "framer-motion";
@@ -39,6 +40,9 @@ import { PhoneNumberRecord } from "@/lib/types/phone-numbers";
 import { getAssistantDetails, Assistant } from "@/lib/services/assistants";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { Avatar, AvatarFallback, AvatarImage } from "@/components/ui/avatar";
+import { createClient } from "@/lib/supabase/client";
+import { STRIPE_PLANS } from "@/lib/constants/plans";
+import { Progress } from "@/components/ui/progress";
 
 export default function PhoneNumbersPage() {
   const { user } = useAuthStore();
@@ -47,6 +51,9 @@ export default function PhoneNumbersPage() {
   const [error, setError] = useState<string | null>(null);
   const [loading, setLoading] = useState(true);
   
+  // Quota State
+  const [quota, setQuota] = useState<{ used: number; total: number; planName: string }>({ used: 0, total: 0, planName: '' });
+
   // Search & Buy State
   const [searchCountry, setSearchCountry] = useState("US");
   const [searchAreaCode, setSearchAreaCode] = useState("");
@@ -63,9 +70,9 @@ export default function PhoneNumbersPage() {
   const [routingLoading, setRoutingLoading] = useState(false);
   const [assistants, setAssistants] = useState<Assistant[]>([]);
 
-  // Fetch phone numbers on component mount
+  // Fetch phone numbers and quota on component mount
   useEffect(() => {
-    const fetchPhoneNumbers = async () => {
+    const fetchData = async () => {
       if (!user) {
         setError('Please log in to view phone numbers');
         setLoading(false);
@@ -79,17 +86,37 @@ export default function PhoneNumbersPage() {
       }
 
       try {
+        // 1. Fetch Phone Numbers
         const numbers = await getPhoneNumbers(user.organisation_uuid);
         setPhoneNumbers(numbers);
+
+        // 2. Fetch Quota Info
+        const supabase = createClient();
+        const { data: org } = await supabase
+            .from('organizations')
+            .select('subscription_plan')
+            .eq('uuid', user.organisation_uuid)
+            .single();
+        
+        const planName = org?.subscription_plan || 'Free';
+        const planDetails = STRIPE_PLANS.find(p => p.name === planName);
+        const included = planDetails?.phoneNumbersIncluded || 0;
+
+        setQuota({
+            used: numbers.length,
+            total: included,
+            planName: planName
+        });
+
       } catch (error) {
-        console.error('Failed to fetch phone numbers:', error);
+        console.error('Failed to fetch data:', error);
         setError('Failed to load phone numbers');
       } finally {
         setLoading(false);
       }
     };
 
-    fetchPhoneNumbers();
+    fetchData();
   }, [user?.organisation_uuid]);
 
   // Fetch assistants on component mount
@@ -127,9 +154,14 @@ export default function PhoneNumbersPage() {
     setBuyingNumber(phoneNumber);
     try {
       const result = await buyPhoneNumber(phoneNumber);
+      
       // Refresh list
       const numbers = await getPhoneNumbers(user.organisation_uuid);
       setPhoneNumbers(numbers);
+      
+      // Update usage count locally
+      setQuota(prev => ({ ...prev, used: numbers.length }));
+
       setIsModalOpen(false);
       setSearchResults([]);
       // Optional: Show success toast or notification
@@ -155,7 +187,10 @@ export default function PhoneNumbersPage() {
     setDeleteLoading(true);
     try {
       await deletePhoneNumber(user.organisation_uuid, phoneNumberToDelete.uuid);
-      setPhoneNumbers(prev => prev.filter(num => num.uuid !== phoneNumberToDelete.uuid));
+      const newNumbers = phoneNumbers.filter(num => num.uuid !== phoneNumberToDelete.uuid);
+      setPhoneNumbers(newNumbers);
+      setQuota(prev => ({ ...prev, used: newNumbers.length }));
+
       setDeleteDialogOpen(false);
       setPhoneNumberToDelete(null);
     } catch (err: any) {
@@ -215,6 +250,8 @@ export default function PhoneNumbersPage() {
 
   const clearError = () => setError(null);
 
+  const isOverQuota = quota.used >= quota.total;
+
   return (
     <div className="container max-w-7xl mx-auto px-4 py-8 space-y-8">
       {/* Professional Header */}
@@ -226,150 +263,191 @@ export default function PhoneNumbersPage() {
           </p>
         </div>
         
-        <Dialog open={isModalOpen} onOpenChange={(open) => {
-            setIsModalOpen(open);
-            if (open) {
-                setError(null);
-                setSearchResults([]);
-                setSearchAreaCode("");
-            }
-        }}>
-            <DialogTrigger asChild>
-            <Button size="lg" className="gap-2 shadow-sm bg-black text-white hover:bg-gray-800 transition-all">
-                <Plus className="h-5 w-5" />
-                Add Phone Number
-            </Button>
-            </DialogTrigger>
-            <DialogContent className="sm:max-w-[650px] p-0 overflow-hidden rounded-xl gap-0">
-            <DialogHeader className="p-6 pb-4 bg-gray-50/50 border-b">
-                <div className="flex items-center gap-3 mb-1">
-                    <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
-                        <Globe className="h-5 w-5 text-blue-600" />
-                    </div>
-                    <div>
-                        <DialogTitle className="text-xl">Get a New Number</DialogTitle>
-                        <DialogDescription className="text-sm mt-1">
-                        Search and acquire a phone number for your AI agents.
-                        </DialogDescription>
-                    </div>
+        <div className="flex items-center gap-4">
+            {/* Quota Display */}
+            <div className="hidden md:block text-right mr-2">
+                <div className="text-sm font-medium text-gray-900">
+                    {quota.used} / {quota.total} Included Numbers
                 </div>
-            </DialogHeader>
-            
-            <div className="p-6 space-y-6 bg-white">
-                <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
-                    <div className="space-y-2">
-                        <Label className="text-sm font-medium text-gray-700">Country</Label>
-                        <Select value={searchCountry} onValueChange={setSearchCountry}>
-                            <SelectTrigger className="h-11">
-                                <SelectValue />
-                            </SelectTrigger>
-                            <SelectContent>
-                                <SelectItem value="US">🇺🇸 United States</SelectItem>
-                                <SelectItem value="GB">🇬🇧 United Kingdom</SelectItem>
-                                <SelectItem value="CA">🇨🇦 Canada</SelectItem>
-                                <SelectItem value="AU">🇦🇺 Australia</SelectItem>
-                            </SelectContent>
-                        </Select>
-                    </div>
-                    <div className="space-y-2">
-                        <Label className="text-sm font-medium text-gray-700">Area Code</Label>
-                        <div className="relative">
-                            <Input 
-                                className="h-11 pl-9"
-                                placeholder="e.g. 415" 
-                                value={searchAreaCode} 
-                                onChange={(e) => setSearchAreaCode(e.target.value)} 
-                            />
-                            <MapPin className="absolute left-3 top-3.5 h-4 w-4 text-gray-400" />
-                        </div>
-                    </div>
-                </div>
-                
-                <Button 
-                    onClick={handleSearchNumbers} 
-                    className="w-full h-11 text-base font-medium" 
-                    disabled={searchLoading}
-                    size="lg"
-                >
-                    {searchLoading ? (
-                        <>
-                            <Loader2 className="h-4 w-4 animate-spin mr-2" />
-                            Searching Available Numbers...
-                        </>
-                    ) : (
-                        <>
-                            <Search className="h-4 w-4 mr-2" />
-                            Find Available Numbers
-                        </>
-                    )}
-                </Button>
-
-                <div className="relative">
-                    <div className="absolute inset-0 flex items-center">
-                        <span className="w-full border-t" />
-                    </div>
-                    <div className="relative flex justify-center text-xs uppercase">
-                        <span className="bg-white px-2 text-muted-foreground">Results</span>
-                    </div>
-                </div>
-
-                <div className="min-h-[200px] max-h-[300px] overflow-y-auto pr-1 custom-scrollbar">
-                    {searchResults.length > 0 ? (
-                        <div className="grid grid-cols-1 gap-3">
-                            {searchResults.map((result, idx) => (
-                                <motion.div 
-                                    initial={{ opacity: 0, y: 10 }}
-                                    animate={{ opacity: 1, y: 0 }}
-                                    transition={{ delay: idx * 0.05 }}
-                                    key={idx} 
-                                    className="flex items-center justify-between p-4 border rounded-xl hover:border-blue-200 hover:bg-blue-50/30 transition-all group"
-                                >
-                                    <div className="flex items-center gap-3">
-                                        <div className="h-8 w-8 rounded-full bg-gray-100 flex items-center justify-center group-hover:bg-white transition-colors">
-                                            <Phone className="h-4 w-4 text-gray-600" />
-                                        </div>
-                                        <div>
-                                            <div className="font-semibold text-lg text-gray-900">{result.phoneNumber}</div>
-                                            <div className="text-xs text-muted-foreground flex items-center gap-1">
-                                                <MapPin className="h-3 w-3" />
-                                                {result.locality}, {result.region}
-                                            </div>
-                                        </div>
-                                    </div>
-                                    <Button 
-                                        size="sm" 
-                                        onClick={() => handleBuyNumber(result.phoneNumber)}
-                                        disabled={buyingNumber !== null}
-                                        className={buyingNumber === result.phoneNumber ? "w-24" : "w-20"}
-                                    >
-                                        {buyingNumber === result.phoneNumber ? (
-                                            <Loader2 className="h-4 w-4 animate-spin" />
-                                        ) : (
-                                            "Select"
-                                        )}
-                                    </Button>
-                                </motion.div>
-                            ))}
-                        </div>
-                    ) : (
-                        !searchLoading && (
-                            <div className="flex flex-col items-center justify-center h-[200px] text-center space-y-3 border-2 border-dashed rounded-xl bg-gray-50/50">
-                                <div className="h-12 w-12 rounded-full bg-gray-100 flex items-center justify-center">
-                                    <Search className="h-6 w-6 text-gray-400" />
-                                </div>
-                                <div className="space-y-1">
-                                    <p className="text-sm font-medium text-gray-900">No numbers found yet</p>
-                                    <p className="text-xs text-muted-foreground max-w-[200px] mx-auto">
-                                        Enter an area code and click search to find available phone numbers.
-                                    </p>
-                                </div>
-                            </div>
-                        )
-                    )}
+                <div className="text-xs text-muted-foreground">
+                    {quota.planName} Plan
                 </div>
             </div>
-            </DialogContent>
-        </Dialog>
+
+            <Dialog open={isModalOpen} onOpenChange={(open) => {
+                setIsModalOpen(open);
+                if (open) {
+                    setError(null);
+                    setSearchResults([]);
+                    setSearchAreaCode("");
+                }
+            }}>
+                <DialogTrigger asChild>
+                <Button size="lg" className="gap-2 shadow-sm bg-black text-white hover:bg-gray-800 transition-all">
+                    <Plus className="h-5 w-5" />
+                    Add Phone Number
+                </Button>
+                </DialogTrigger>
+                <DialogContent className="sm:max-w-[650px] p-0 overflow-hidden rounded-xl gap-0">
+                <DialogHeader className="p-6 pb-4 bg-gray-50/50 border-b">
+                    <div className="flex items-center gap-3 mb-1">
+                        <div className="h-10 w-10 rounded-full bg-blue-100 flex items-center justify-center">
+                            <Globe className="h-5 w-5 text-blue-600" />
+                        </div>
+                        <div>
+                            <DialogTitle className="text-xl">Get a New Number</DialogTitle>
+                            <DialogDescription className="text-sm mt-1">
+                            Search and acquire a phone number for your AI agents.
+                            </DialogDescription>
+                        </div>
+                    </div>
+                    
+                    {/* Quota Info in Modal */}
+                    <div className="mt-4 p-3 bg-white border rounded-lg flex items-center justify-between shadow-sm">
+                        <div className="flex flex-col">
+                            <span className="text-xs font-semibold uppercase text-gray-500 tracking-wider">Your Plan</span>
+                            <span className="text-sm font-bold text-gray-900">{quota.planName}</span>
+                        </div>
+                        <div className="flex flex-col items-end">
+                             <span className="text-xs font-semibold uppercase text-gray-500 tracking-wider">Included Numbers</span>
+                             <div className="flex items-center gap-2">
+                                <span className={`text-sm font-bold ${isOverQuota ? 'text-orange-600' : 'text-green-600'}`}>
+                                    {quota.used} used
+                                </span>
+                                <span className="text-sm text-gray-400">/</span>
+                                <span className="text-sm font-bold text-gray-900">{quota.total} total</span>
+                             </div>
+                        </div>
+                    </div>
+
+                    {isOverQuota && (
+                        <Alert className="mt-3 bg-blue-50 border-blue-200 text-blue-800">
+                            <CreditCard className="h-4 w-4 text-blue-600" />
+                            <AlertDescription className="ml-2 text-xs font-medium">
+                                You have used all your included numbers. Additional numbers are £4/mo.
+                            </AlertDescription>
+                        </Alert>
+                    )}
+                </DialogHeader>
+                
+                <div className="p-6 space-y-6 bg-white">
+                    <div className="grid grid-cols-1 md:grid-cols-2 gap-5">
+                        <div className="space-y-2">
+                            <Label className="text-sm font-medium text-gray-700">Country</Label>
+                            <Select value={searchCountry} onValueChange={setSearchCountry}>
+                                <SelectTrigger className="h-11">
+                                    <SelectValue />
+                                </SelectTrigger>
+                                <SelectContent>
+                                    <SelectItem value="US">🇺🇸 United States</SelectItem>
+                                    <SelectItem value="GB">🇬🇧 United Kingdom</SelectItem>
+                                    <SelectItem value="CA">🇨🇦 Canada</SelectItem>
+                                    <SelectItem value="AU">🇦🇺 Australia</SelectItem>
+                                </SelectContent>
+                            </Select>
+                        </div>
+                        <div className="space-y-2">
+                            <Label className="text-sm font-medium text-gray-700">Area Code</Label>
+                            <div className="relative">
+                                <Input 
+                                    className="h-11 pl-9"
+                                    placeholder="e.g. 415" 
+                                    value={searchAreaCode} 
+                                    onChange={(e) => setSearchAreaCode(e.target.value)} 
+                                />
+                                <MapPin className="absolute left-3 top-3.5 h-4 w-4 text-gray-400" />
+                            </div>
+                        </div>
+                    </div>
+                    
+                    <Button 
+                        onClick={handleSearchNumbers} 
+                        className="w-full h-11 text-base font-medium" 
+                        disabled={searchLoading}
+                        size="lg"
+                    >
+                        {searchLoading ? (
+                            <>
+                                <Loader2 className="h-4 w-4 animate-spin mr-2" />
+                                Searching Available Numbers...
+                            </>
+                        ) : (
+                            <>
+                                <Search className="h-4 w-4 mr-2" />
+                                Find Available Numbers
+                            </>
+                        )}
+                    </Button>
+
+                    <div className="relative">
+                        <div className="absolute inset-0 flex items-center">
+                            <span className="w-full border-t" />
+                        </div>
+                        <div className="relative flex justify-center text-xs uppercase">
+                            <span className="bg-white px-2 text-muted-foreground">Results</span>
+                        </div>
+                    </div>
+
+                    <div className="min-h-[200px] max-h-[300px] overflow-y-auto pr-1 custom-scrollbar">
+                        {searchResults.length > 0 ? (
+                            <div className="grid grid-cols-1 gap-3">
+                                {searchResults.map((result, idx) => (
+                                    <motion.div 
+                                        initial={{ opacity: 0, y: 10 }}
+                                        animate={{ opacity: 1, y: 0 }}
+                                        transition={{ delay: idx * 0.05 }}
+                                        key={idx} 
+                                        className="flex items-center justify-between p-4 border rounded-xl hover:border-blue-200 hover:bg-blue-50/30 transition-all group"
+                                    >
+                                        <div className="flex items-center gap-3">
+                                            <div className="h-8 w-8 rounded-full bg-gray-100 flex items-center justify-center group-hover:bg-white transition-colors">
+                                                <Phone className="h-4 w-4 text-gray-600" />
+                                            </div>
+                                            <div>
+                                                <div className="font-semibold text-lg text-gray-900">{result.phoneNumber}</div>
+                                                <div className="text-xs text-muted-foreground flex items-center gap-1">
+                                                    <MapPin className="h-3 w-3" />
+                                                    {result.locality}, {result.region}
+                                                </div>
+                                            </div>
+                                        </div>
+                                        <Button 
+                                            size="sm" 
+                                            onClick={() => handleBuyNumber(result.phoneNumber)}
+                                            disabled={buyingNumber !== null}
+                                            className={`${buyingNumber === result.phoneNumber ? "w-32" : "w-24"} ${isOverQuota ? 'bg-blue-600 hover:bg-blue-700' : ''}`}
+                                        >
+                                            {buyingNumber === result.phoneNumber ? (
+                                                <Loader2 className="h-4 w-4 animate-spin" />
+                                            ) : isOverQuota ? (
+                                                "Buy £4/mo"
+                                            ) : (
+                                                "Get Free"
+                                            )}
+                                        </Button>
+                                    </motion.div>
+                                ))}
+                            </div>
+                        ) : (
+                            !searchLoading && (
+                                <div className="flex flex-col items-center justify-center h-[200px] text-center space-y-3 border-2 border-dashed rounded-xl bg-gray-50/50">
+                                    <div className="h-12 w-12 rounded-full bg-gray-100 flex items-center justify-center">
+                                        <Search className="h-6 w-6 text-gray-400" />
+                                    </div>
+                                    <div className="space-y-1">
+                                        <p className="text-sm font-medium text-gray-900">No numbers found yet</p>
+                                        <p className="text-xs text-muted-foreground max-w-[200px] mx-auto">
+                                            Enter an area code and click search to find available phone numbers.
+                                        </p>
+                                    </div>
+                                </div>
+                            )
+                        )}
+                    </div>
+                </div>
+                </DialogContent>
+            </Dialog>
+        </div>
       </div>
 
       {/* Error Alert */}
