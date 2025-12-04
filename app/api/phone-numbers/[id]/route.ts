@@ -127,28 +127,30 @@ export async function DELETE(
        // to fill the slot opened by this deletion.
        
        // Find one paid number for this org
-       const { data: paidNumbers } = await supabase
-           .from('phone_numbers')
-           .select('*')
-           .eq('organization_uuid', userData.organization_uuid)
-           .not('stripe_subscription_item_id', 'is', null)
-           .limit(1); // Just get one
+       if (userData?.organization_uuid) {
+           const { data: paidNumbers } = await supabase
+               .from('phone_numbers')
+               .select('*')
+               .eq('organization_uuid', userData.organization_uuid)
+               .not('stripe_subscription_item_id', 'is', null)
+               .limit(1); // Just get one
 
-       if (paidNumbers && paidNumbers.length > 0) {
-           const paidNumberToFree = paidNumbers[0];
-           
-           // 1. Cancel billing for this number
-           try {
-               await stripe.subscriptionItems.del(paidNumberToFree.stripe_subscription_item_id);
+           if (paidNumbers && paidNumbers.length > 0) {
+               const paidNumberToFree = paidNumbers[0];
                
-               // 2. Update DB to mark it as free
-               await supabase
-                   .from('phone_numbers')
-                   .update({ stripe_subscription_item_id: null })
-                   .eq('uuid', paidNumberToFree.uuid);
+               // 1. Cancel billing for this number
+               try {
+                   await stripe.subscriptionItems.del(paidNumberToFree.stripe_subscription_item_id);
                    
-           } catch (e) {
-               console.error('Error reconciling paid number to free slot:', e);
+                   // 2. Update DB to mark it as free
+                   await supabase
+                       .from('phone_numbers')
+                       .update({ stripe_subscription_item_id: null })
+                       .eq('uuid', paidNumberToFree.uuid);
+                       
+               } catch (e) {
+                   console.error('Error reconciling paid number to free slot:', e);
+               }
            }
        }
    }
