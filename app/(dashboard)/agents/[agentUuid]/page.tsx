@@ -258,6 +258,8 @@ export default function AgentDetailsPage() {
   // Feature flags
   const ADVANCED_COMING_SOON = false;
 
+  const [isTestingWebhook, setIsTestingWebhook] = useState(false);
+
   // Form hooks
   const contentForm = useForm<ContentFormData>({
     resolver: zodResolver(contentFormSchema),
@@ -471,6 +473,45 @@ export default function AgentDetailsPage() {
       // but we could add a toast notification here if needed
       // intentionally do not rethrow to avoid unhandled errors in event handlers
       }
+  };
+
+  // Handle test webhook
+  const handleTestWebhook = async (e: React.MouseEvent) => {
+    e.preventDefault();
+    if (!user?.organisation_uuid || !agentUuid) return;
+    
+    const url = advancedSettingsForm.getValues("customWebhookUrl");
+    if (!url) {
+      alert("Please enter a webhook URL first.");
+      return;
+    }
+
+    setIsTestingWebhook(true);
+    try {
+      // First save the URL if it's dirty
+      if (advancedSettingsForm.formState.dirtyFields.customWebhookUrl) {
+        await updateAgent(user.organisation_uuid, agentUuid, {
+          customWebhookUrl: url
+        }, false);
+      }
+
+      const response = await fetch(`/api/agents/${agentUuid}/test-webhook`, {
+        method: 'POST',
+      });
+      
+      const data = await response.json();
+      
+      if (data.success) {
+        alert(`Success! Webhook received with status: ${data.status}`);
+      } else {
+        alert(`Failed: ${data.error || 'Unknown error'}`);
+      }
+    } catch (error) {
+      console.error("Test webhook failed:", error);
+      alert("Failed to send test webhook.");
+    } finally {
+      setIsTestingWebhook(false);
+    }
   };
 
   // Image processing function
@@ -2192,6 +2233,26 @@ export default function AgentDetailsPage() {
                       <span className={`inline-block h-2 w-2 rounded-full ${advancedSettingsForm.watch("customWebhookUrl") ? "bg-green-500" : "bg-gray-300"}`}></span>
                       {advancedSettingsForm.watch("customWebhookUrl") ? "Active" : "Inactive"}
                     </div>
+                    <Button
+                      type="button"
+                      variant="outline"
+                      size="sm"
+                      onClick={handleTestWebhook}
+                      disabled={!advancedSettingsForm.watch("customWebhookUrl") || isTestingWebhook}
+                      className="h-8"
+                    >
+                      {isTestingWebhook ? (
+                        <>
+                          <Loader2 className="h-3 w-3 mr-2 animate-spin" />
+                          Sending...
+                        </>
+                      ) : (
+                        <>
+                          <Sparkles className="h-3 w-3 mr-2" />
+                          Test Webhook
+                        </>
+                      )}
+                    </Button>
                   </div>
                 </div>
               </CardContent>
