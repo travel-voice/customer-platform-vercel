@@ -491,7 +491,7 @@ export default function AgentDetailsPage() {
       // First save the URL if it's dirty
       if (advancedSettingsForm.formState.dirtyFields.customWebhookUrl) {
         await updateAgent(user.organisation_uuid, agentUuid, {
-          customWebhookUrl: url
+          custom_webhook_url: url
         }, false);
       }
 
