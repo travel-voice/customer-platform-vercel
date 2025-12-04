@@ -78,6 +78,13 @@ export async function POST(request: NextRequest) {
         call.webCallUrl ||
         null;
 
+      const recordingUrl =
+        message.recordingUrl ||
+        message.artifact?.recording?.mono?.combinedUrl ||
+        message.artifact?.recording?.stereoUrl ||
+        message.stereoRecordingUrl ||
+        null;
+
       // Extract structured data from Vapi's structured output
       // This will be in message.artifact.structuredData as an array
       const structuredData = message.artifact?.structuredData?.[0] || null;
@@ -120,6 +127,22 @@ export async function POST(request: NextRequest) {
           console.error('Error sending customer webhook:', err);
         });
       }
+
+      // Prepare call details
+      const durationSeconds = Math.round(
+        message.durationSeconds ??
+        message.durationMs
+          ? message.durationMs / 1000
+          : call.durationSeconds ??
+            call.durationMinutes
+              ? call.durationMinutes * 60
+              : 0
+      );
+
+      const transcriptMessages =
+        message.artifact?.messages ||
+        message.messages ||
+        [];
 
       const extractedData = {
         summary,
