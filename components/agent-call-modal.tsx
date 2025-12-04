@@ -133,8 +133,8 @@ const TranscriptFeed: React.FC<{ addTranscript: (fn: (message: Message) => void)
   const [messageBlocks, setMessageBlocks] = useState<MessageBlock[]>([]);
 
   const scrollToBottom = () => {
-    if (feedRef.current) {
-      feedRef.current.scrollTop = feedRef.current.scrollHeight;
+    if (feedRef.current?.parentElement) {
+      feedRef.current.parentElement.scrollTop = feedRef.current.parentElement.scrollHeight;
     }
   };
 
