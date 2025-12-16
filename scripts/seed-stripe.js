@@ -34,6 +34,17 @@ const plans = [
     metadata: {
         minutes_included: "5000"
     }
+  },
+  {
+    id: "phone_number",
+    name: "Additional Phone Number",
+    description: "Additional phone number for your plan",
+    price: 1000, // in pence (£10/month - adjust as needed)
+    currency: "gbp",
+    interval: "month",
+    metadata: {
+        type: "phone_number_addon"
+    }
   }
 ];
 
@@ -55,6 +66,8 @@ rl.question('Please enter your STRIPE_SECRET_KEY (starts with sk_...): ', async 
   console.log('\nCreating products and prices...\n');
 
   try {
+    const priceIds = {};
+    
     for (const plan of plans) {
       console.log(`Creating plan: ${plan.name}...`);
       
@@ -75,14 +88,22 @@ rl.question('Please enter your STRIPE_SECRET_KEY (starts with sk_...): ', async 
         },
       });
 
+      priceIds[plan.id] = price.id;
+
       console.log(`✅ Created ${plan.name}:`);
       console.log(`   Product ID: ${product.id}`);
-      console.log(`   Price ID:   ${price.id}`);
-      console.log(`   (Add this Price ID to your .env as NEXT_PUBLIC_STRIPE_PRICE_ID_${plan.id.toUpperCase()})\n`);
+      console.log(`   Price ID:   ${price.id}\n`);
     }
 
-    console.log('🎉 All plans created successfully!');
-    console.log('\nCopy these Price IDs into your .env.local file:');
+    console.log('🎉 All plans created successfully!\n');
+    console.log('═══════════════════════════════════════════════════════');
+    console.log('Copy these lines to your .env.local file:');
+    console.log('═══════════════════════════════════════════════════════\n');
+    console.log(`NEXT_PUBLIC_STRIPE_PRICE_ID_LITE=${priceIds.lite}`);
+    console.log(`NEXT_PUBLIC_STRIPE_PRICE_ID_STANDARD=${priceIds.standard}`);
+    console.log(`NEXT_PUBLIC_STRIPE_PRICE_ID_PROFESSIONAL=${priceIds.professional}`);
+    console.log(`NEXT_PUBLIC_STRIPE_PRICE_ID_PHONE_NUMBER=${priceIds.phone_number}`);
+    console.log('\n═══════════════════════════════════════════════════════\n');
     
   } catch (error) {
     console.error('❌ Error creating plans:', error.message);
